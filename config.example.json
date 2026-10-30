@@ -1,6 +1,10 @@
 {
-  "trigger_prefixes": ["让电脑"],
-  "xiaomi": {"device_id": ""},
+  "trigger_prefixes": [
+    "让电脑"
+  ],
+  "xiaomi": {
+    "device_id": ""
+  },
   "poll_interval_seconds": 3,
   "max_command_age_seconds": 30,
   "tts_reply": true,
@@ -8,9 +12,32 @@
     {
       "id": "open_bilibili",
       "action": "open_url",
-      "phrases": ["打开B站", "打开哔哩哔哩", "打开哔哩", "打开bilibili"],
+      "phrases": [
+        "打开B站",
+        "打开哔哩哔哩",
+        "打开哔哩",
+        "打开bilibili"
+      ],
       "url": "https://www.bilibili.com",
       "reply": "已请求电脑打开B站"
+    },
+    {
+      "id": "set_volume",
+      "action": "set_volume",
+      "phrases": [
+        "把音量调到{level}",
+        "音量调到{level}",
+        "把音量设置为{level}",
+        "音量设置为{level}"
+      ]
+    },
+    {
+      "id": "lock_pc",
+      "action": "lock",
+      "phrases": [
+        "锁屏",
+        "锁定电脑"
+      ]
     }
   ]
 }

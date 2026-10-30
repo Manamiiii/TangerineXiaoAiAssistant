@@ -4,16 +4,18 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "TangerineXiaoAiAssistant"
+VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["project"]["version"]
 
 
 def main():
     runtime_licenses = ROOT / "build" / "runtime-licenses"
     runtime_licenses.mkdir(parents=True, exist_ok=True)
     # Actual license texts from installed distributions, not hand-written summaries.
-    for name in ("requests", "certifi", "charset-normalizer", "idna", "urllib3", "pyinstaller"):
+    for name in ("requests", "certifi", "charset-normalizer", "idna", "urllib3", "pyinstaller", "pycaw", "comtypes", "psutil"):
         dist = metadata.distribution(name)
         copied = 0
         for item in dist.files or []:
@@ -52,11 +54,12 @@ def main():
     shutil.copytree(ROOT / "licenses", portable / "licenses", dirs_exist_ok=True)
     shutil.copytree(ROOT / "docs", portable / "docs", dirs_exist_ok=True)
     shutil.copytree(runtime_licenses, portable / "licenses" / "runtime", dirs_exist_ok=True)
-    for name, command in (("login", "login"), ("run", "run"), ("probe", "probe")):
+    for name, command in (("login", "login"), ("run", "run"), ("probe", "probe"),
+                          ("configure-app", "add-app"), ("upgrade-config", "enable-local-commands")):
         content = (f'@echo off\nchcp 65001 >nul\n"%~dp0{NAME}.exe" init\n'
                    f'if errorlevel 1 goto done\n"%~dp0{NAME}.exe" {command}\n:done\npause\n')
         (portable / f"{name}.cmd").write_text(content, encoding="utf-8", newline="\r\n")
-    shutil.make_archive(str(ROOT / "dist" / f"{NAME}-0.1.0-windows-x64"), "zip", ROOT / "dist", NAME)
+    shutil.make_archive(str(ROOT / "dist" / f"{NAME}-{VERSION}-windows-x64"), "zip", ROOT / "dist", NAME)
     print(f"Portable build: {portable}")
 
 
