@@ -45,5 +45,5 @@ verification is disabled or CA bundle modified.
 
 The dependency versions tested are recorded in requirements-runtime.lock and
 requirements-build.lock. Public binary release should retain this notice and the
-complete bundled license directory. This initial build is a local test artifact,
-not a signed installer or a GitHub Release.
+complete bundled license directory. The 0.1.0 package is an unsigned portable
+test build, not an installer or a device-validated production release.

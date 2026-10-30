@@ -6,7 +6,11 @@
 
 ## 运行测试版（不需要 Python）
 
-在本机 `dist/TangerineXiaoAiAssistant/` 中：
+从 [GitHub Releases](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases) 下载 `TangerineXiaoAiAssistant-0.1.0-windows-x64.zip`，完整解压后进入 `TangerineXiaoAiAssistant` 文件夹。不要下载页面自动生成的 `Source code`，也不要在压缩包内直接运行程序。
+
+这是 Windows x64 便携预发布测试版，不是安装程序；不需要安装 Python。到另一台电脑上使用时，在那台电脑重新扫码登录绑定目标音箱的小米账号，不要复制其他电脑的加密凭据。
+
+在解压后的文件夹中（开发机对应 `dist/TangerineXiaoAiAssistant/`）：
 
 1. 双击 `login.cmd`，用米家 App 扫描弹出的二维码并在手机上确认。多个音箱时按编号选择。
 2. 双击 `probe.cmd`，预期显示设备可访问、对话接口返回记录数量。
