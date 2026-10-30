@@ -21,7 +21,7 @@ validate JSON shapes; propagate conversation/network errors; validate inner TTS 
 handle malformed conversation items. See docs/RESEARCH.md and the repository diff.
 
 The archived upstream notices also discuss software we do **not** ship (including
-PyQt6, Android components, psutil and mss). Their presence in the archival file does
+PyQt6, Android components and mss). Their presence in the archival file does
 not mean they are dependencies of this project. In particular, the upstream PyQt
 dynamic-linking statement is not relied on here; consult the vendor's GPL/commercial
 licensing terms if adding PyQt in the future.
@@ -35,6 +35,9 @@ licensing terms if adding PyQt in the future.
 | charset-normalizer | MIT | Encoding detection |
 | idna | BSD-3-Clause | Domain encoding |
 | certifi | MPL-2.0 | CA certificate bundle |
+| pycaw | MIT | Windows Core Audio interfaces and device access |
+| comtypes | MIT | COM interop used by pycaw |
+| psutil | BSD-3-Clause | Required by pycaw; no system-monitoring feature is exposed |
 | Python | PSF License and included third-party notices | Embedded runtime in exe |
 | PyInstaller | GPL-2.0-or-later with distribution exception | Build tool and bootloader |
 
@@ -45,5 +48,5 @@ verification is disabled or CA bundle modified.
 
 The dependency versions tested are recorded in requirements-runtime.lock and
 requirements-build.lock. Public binary release should retain this notice and the
-complete bundled license directory. The 0.1.0 package is an unsigned portable
+complete bundled license directory. This package is an unsigned portable
 test build, not an installer or a device-validated production release.

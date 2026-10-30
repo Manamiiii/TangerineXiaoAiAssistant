@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from copy import deepcopy
 from getpass import getpass
 import json
@@ -18,15 +19,22 @@ from .vendor.voxnode.account import SID_MINA, XiaomiAuthError
 from .vendor.voxnode.mina import MiNA, MiNAProtocolError
 from .vendor.voxnode.qrlogin import XiaomiQrLogin, CONFIRMED, EXPIRED, FAILED, SCANNED
 from .xiaomi import SecureAccount, XiaomiSpeaker, require_login
+from .windows_actions import get_volume, validate_app_path
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(description="橘子小爱电脑助手：Windows 网页控制 MVP")
+    root = argparse.ArgumentParser(description="橘子小爱电脑助手：Windows 本地命令测试版")
     root.add_argument("--version", action="version", version=__version__)
     root.add_argument("--data-dir", type=Path, help="覆盖本地数据目录（默认 LOCALAPPDATA）")
     root.add_argument("--config", type=Path, help="覆盖非敏感 JSON 配置路径")
     sub = root.add_subparsers(dest="command")
     sub.add_parser("init", help="生成默认配置，不覆盖现有文件")
+    sub.add_parser("enable-local-commands", help="向旧配置补入音量和锁屏规则，保留设备与自定义命令")
+    app = sub.add_parser("add-app", help="登记应用 EXE 白名单，不会启动应用")
+    app.add_argument("name", nargs="?", help="例如：微信；省略时在本机交互输入")
+    app.add_argument("path", nargs="?", help="已安装应用的绝对 EXE 路径")
+    app.add_argument("--alias", action="append", default=[], help="附加名称，可重复传入")
+    sub.add_parser("volume-status", help="只读取当前默认播放设备的音量与静音状态")
     login = sub.add_parser("login", help="小米扫码登录；无需在聊天中提供账号密码")
     login.add_argument("--password", action="store_true", help="改用隐藏输入的账号密码登录")
     sub.add_parser("logout", help="删除本机加密登录缓存，不影响云端设备绑定")
@@ -38,7 +46,7 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true", help="只验证匹配，不打开网页或播报")
     test = sub.add_parser("test-command", help="本地测试，不连接小米；默认只演练")
     test.add_argument("text", help="例如：小爱同学，让电脑打开B站")
-    test.add_argument("--execute", action="store_true", help="实际执行已配置的网页命令")
+    test.add_argument("--execute", action="store_true", help="实际执行匹配命令；锁屏命令会立即请求锁屏")
     return root
 
 
@@ -116,6 +124,38 @@ def perform(args, directory: Path, config_path: Path) -> int:
         print("本机小米登录缓存已删除。")
         return 0
     cfg = config.load(config_path)
+    if args.command == "enable-local-commands":
+        updated, count = config.add_local_commands(cfg)
+        config.save(config_path, updated)
+        print(f"已补入 {count} 条本地规则，原设备与自定义命令已保留；重启运行窗口生效。")
+        return 0
+    if args.command == "add-app":
+        name = (args.name or input("应用名称（例如微信）：")).strip()
+        path = (args.path or input("应用 EXE 的完整路径（可拖入文件）：")).strip().strip('"')
+        aliases = [name, *args.alias]
+        if any(not a.strip() or any(c in a for c in "{}\r\n") for a in aliases):
+            raise config.ConfigError("应用名称和别名不能为空，也不能含占位符或换行。")
+        try:
+            validate_app_path(path)
+            target = Path(path).resolve(strict=True)
+            validate_app_path(str(target))
+            if not target.is_file():
+                raise OSError
+        except ValueError as error:
+            raise config.ConfigError(str(error)) from None
+        except OSError:
+            raise config.ConfigError("所选 EXE 文件不存在或不可访问。") from None
+        cid = "app_" + hashlib.sha256(config.normalize(name).encode()).hexdigest()[:16]
+        command = {"id": cid, "action": "launch_app", "phrases": [f"打开{a}" for a in aliases],
+                   "path": str(target), "reply": f"已请求启动{name}"}
+        cfg["commands"] = [c for c in cfg["commands"] if c["id"] != cid] + [command]
+        config.save(config_path, cfg)
+        print("应用已登记，未执行启动；重启运行窗口后可说：让电脑打开" + name)
+        return 0
+    if args.command == "volume-status":
+        level, muted = get_volume()
+        print(json.dumps({"volume_percent": round(level, 2), "muted": muted}, ensure_ascii=False))
+        return 0
     if args.command == "test-command":
         result = CommandRouter(cfg).execute(args.text, dry_run=not args.execute)
         print(json.dumps({"ok": result.ok, "code": result.code, "reply": result.reply}, ensure_ascii=False))

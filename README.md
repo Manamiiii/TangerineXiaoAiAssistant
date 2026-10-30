@@ -1,12 +1,12 @@
 # TangerineXiaoAiAssistant · 小爱电脑助手
 
-通过小爱音箱控制 Windows 的轻量助手。当前是 **0.1.0 控制台 MVP**：复用 VoxNode 的小米协议代码，实现“小爱音箱 → 对话轮询 → 固定规则 → 默认浏览器打开 B 站”。
+通过小爱音箱控制 Windows 的轻量助手。当前是 **0.2.0 控制台测试版**：复用 VoxNode 的小米协议代码，通过固定规则打开网页、启动已登记应用、设置系统音量和请求锁屏。
 
 **当前状态：代码与 Windows 本地测试已完成；小米二维码入口已连通；账号登录、具体音箱的对话读取和 TTS 尚待真机验收。不能据此宣称所有音箱可用。**
 
 ## 运行测试版（不需要 Python）
 
-从 [GitHub Releases](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases) 下载 `TangerineXiaoAiAssistant-0.1.0-windows-x64.zip`，完整解压后进入 `TangerineXiaoAiAssistant` 文件夹。不要下载页面自动生成的 `Source code`，也不要在压缩包内直接运行程序。
+从 [GitHub Releases](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases) 下载 `TangerineXiaoAiAssistant-0.2.0-windows-x64.zip`，完整解压后进入 `TangerineXiaoAiAssistant` 文件夹。不要下载页面自动生成的 `Source code`，也不要在压缩包内直接运行程序。
 
 这是 Windows x64 便携预发布测试版，不是安装程序；不需要安装 Python。到另一台电脑上使用时，在那台电脑重新扫码登录绑定目标音箱的小米账号，不要复制其他电脑的加密凭据。
 
@@ -37,6 +37,19 @@
 
 ## 配置和隐私
 
+**从 0.1.0 升级**：先停止旧运行窗口，再双击新包中的 `upgrade-config.cmd`，向旧配置补入音量和锁屏规则。登录、设备、触发词与已有网页命令保留。不运行升级脚本也可以继续使用原有网页命令。
+
+**登记应用**：双击 `configure-app.cmd`，输入名称（如微信），再输入或拖入该电脑已安装应用的 `.exe` 文件。之后重启 `run.cmd`，即可说“让电脑打开微信”。同名应用再次登记会更新路径；应用更新后路径变化时可重新登记。不接受快捷方式、脚本、网络路径或附加命令行参数。
+
+| 语音示例 | 行为 |
+|---|---|
+| 让电脑打开 B 站 | 打开配置中的固定网页 |
+| 让电脑打开微信 | 启动事先登记的微信 EXE |
+| 让电脑把音量调到 30 / 三十 / 百分之三十 | 将默认播放设备音量设为 30%，读回结果；保留原静音状态 |
+| 让电脑锁屏 / 锁定电脑 | 向 Windows 请求锁屏，需要在已登录的桌面会话运行 |
+
+音量范围为 0–100 的整数，不接受任意表达式。锁屏命令若使用 `test-command ... --execute` 会实际请求锁屏；默认不加 `--execute` 时只是演练。更多配置示例与实现边界见 [本地命令说明](docs/LOCAL_COMMANDS.md)。
+
 默认数据目录：`%LOCALAPPDATA%\TangerineXiaoAiAssistant`。
 
 | 文件 | 内容 |
@@ -56,7 +69,7 @@
 
 - 小米扫码登录、可选密码/OTP 登录、设备列表和编号选择（协议已实现，账号/设备待实测）。
 - 复用 MiNA `nlp_result_get` 读取对话；TTS 结果播报可通过 `tts_reply` 关闭。
-- 固定触发词、白名单网页命令及别名；无需大模型。
+- 固定触发词、网页和应用白名单、0–100 音量、锁屏；无需大模型。多条规则同时命中时拒绝执行。
 - 初始快照不执行；重复记录去重；超过默认 30 秒的语音不执行；异常未来时间戳不执行。
 - 网络异常按 6、12、24、48、60 秒退避重试；401 最多刷新一次业务令牌；登录失效会给出重新登录指引。
 - 播报失败不重做电脑动作；只反馈“请求打开”，不把浏览器启动请求等同于网页加载成功。
@@ -80,7 +93,7 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe scripts/smoke_exe.py
 ```
 
-开发需要 Python 3.11+，当前验证使用 Windows / Python 3.12 x64。运行依赖只有 `requests` 及其传递依赖；PyInstaller 仅用于构建。`requirements-runtime.lock` / `requirements-build.lock` 固定本次验证的版本。
+开发需要 Python 3.11+，当前验证使用 Windows / Python 3.12 x64。运行依赖包括 `requests`、音量封装 `pycaw`、COM 封装 `comtypes` 及其传递依赖（包括 pycaw 需要的 psutil）；本项目不实现系统监控。PyInstaller 仅用于构建。两个 requirements lock 文件固定本次验证版本。
 
 ## 研究与后续
 
@@ -89,6 +102,6 @@ py -3.12 -m venv .venv
 - [WorkBuddy 接口研究](docs/WORKBUDDY.md)
 - [第三方代码与许可](THIRD_PARTY_NOTICES.md)
 
-第二阶段范围仅为网页控制。应用启动、精确系统音量、锁屏是后续本地命令增量；WorkBuddy 暂为独立接口与显式 Mock，未接入语音主循环，未调用真实任务接口；托盘、自启和安装器待基础链路通过真机验收后再做。
+0.2.0 已补齐应用启动、精确系统音量与锁屏。WorkBuddy 暂为独立接口与显式 Mock，未接入语音主循环，未调用真实任务接口；托盘、设置界面、自启和安装器待基础链路通过真机验收后再做。
 
 这是独立第三方工具，与小米或腾讯没有从属关系。

@@ -7,6 +7,14 @@ from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .windows_actions import validate_app_path
+
+LOCAL_COMMANDS = [
+    {"id": "set_volume", "action": "set_volume",
+     "phrases": ["把音量调到{level}", "音量调到{level}", "把音量设置为{level}", "音量设置为{level}"]},
+    {"id": "lock_pc", "action": "lock", "phrases": ["锁屏", "锁定电脑"]},
+]
+
 DEFAULT_CONFIG = {
     "trigger_prefixes": ["让电脑"],
     "xiaomi": {"device_id": ""},
@@ -20,7 +28,8 @@ DEFAULT_CONFIG = {
             "phrases": ["打开B站", "打开哔哩哔哩", "打开哔哩", "打开bilibili"],
             "url": "https://www.bilibili.com",
             "reply": "已请求电脑打开B站",
-        }
+        },
+        *deepcopy(LOCAL_COMMANDS),
     ],
 }
 
@@ -84,26 +93,56 @@ def validate(data: dict) -> dict:
         raise ConfigError("commands 必须是列表。")
     ids, phrases = set(), set()
     for command in commands:
-        if not isinstance(command, dict) or set(command) - {"id", "action", "phrases", "url", "reply"}:
+        if not isinstance(command, dict) or set(command) - {"id", "action", "phrases", "url", "path", "reply"}:
             raise ConfigError("命令包含不支持的字段。")
         cid = command.get("id")
         if not isinstance(cid, str) or not cid or cid in ids:
             raise ConfigError("命令 id 必须非空且唯一。")
         ids.add(cid)
-        if command.get("action") != "open_url":
-            raise ConfigError("当前 MVP 只支持 open_url，不允许 Shell 命令。")
-        validate_url(command.get("url"))
+        action = command.get("action")
+        if action not in ("open_url", "launch_app", "set_volume", "lock"):
+            raise ConfigError("仅支持网页、应用白名单、音量和锁屏，不允许 Shell 命令。")
+        if action == "open_url":
+            validate_url(command.get("url"))
+        elif "url" in command:
+            raise ConfigError("只有网页命令可以配置 url。")
+        if action == "launch_app":
+            try:
+                validate_app_path(command.get("path"))
+            except ValueError as error:
+                raise ConfigError(str(error)) from None
+        elif "path" in command:
+            raise ConfigError("只有应用命令可以配置 path。")
+        if action in ("set_volume", "lock") and "reply" in command:
+            raise ConfigError("音量与锁屏使用系统结果生成反馈，不配置 reply。")
         aliases = command.get("phrases")
         if not isinstance(aliases, list) or not aliases:
             raise ConfigError("每条命令需要非空 phrases 列表。")
         for phrase in aliases:
             if not isinstance(phrase, str) or not normalize(phrase) or normalize(phrase) in phrases:
                 raise ConfigError("命令短语必须非空且不能重名。")
+            if action == "set_volume":
+                if phrase.count("{level}") != 1 or any(c in phrase.replace("{level}", "") for c in "{}"):
+                    raise ConfigError("音量短语必须且只能包含一个 {level}。")
+            elif "{" in phrase or "}" in phrase:
+                raise ConfigError("只有音量命令支持 {level} 占位符。")
             phrases.add(normalize(phrase))
         reply = command.get("reply", "已请求电脑打开网页")
         if not isinstance(reply, str) or len(reply) > 120:
             raise ConfigError("播报内容必须是最多 120 字的固定字符串。")
     return result
+
+
+def add_local_commands(data: dict) -> tuple[dict, int]:
+    """Opt-in upgrade: retain existing devices, aliases and custom settings."""
+    result = validate(deepcopy(data))
+    count = 0
+    for default in LOCAL_COMMANDS:
+        if any(c["action"] == default["action"] for c in result["commands"]):
+            continue
+        result["commands"].append(deepcopy(default))
+        count += 1
+    return validate(result), count
 
 
 def load(path: Path) -> dict:
