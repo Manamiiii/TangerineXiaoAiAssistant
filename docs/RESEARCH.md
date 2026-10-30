@@ -79,3 +79,7 @@ requests 及其传递依赖的许可证随构建收集，Python 运行时许可�
 ## 0.2.0 后续增量
 
 用户随后授权继续推进不依赖音箱的功能。已实现应用白名单、精确音量和锁屏，见 LOCAL_COMMANDS.md。为复用成熟 Core Audio 实现，新增 pycaw/comtypes（含 pycaw 的 psutil 依赖），不增加任何系统监控功能。上文“三个小米模块只需要 requests”仍指该通信子集，不再代表 0.2.0 整个程序的依赖。
+
+## 0.3.0 桌面增量
+
+用户继续授权推进，新增 Windows 托盘、简单设置窗口和可选当前用户自启，保留命令行入口。窗口用 Python 自带 Tk；托盘复用 pystray，图像使用 Pillow。GUI 通过串行后台任务调用现有桥接，不重写小米协议。pystray 采用 LGPL-3.0-or-later，完整许可、对应库源码和应用重建材料随便携包提供，详见 THIRD_PARTY_NOTICES.md 和 DESKTOP.md。功能与界面检查已独立完成，原有真机验证边界不变；安装器和 WorkBuddy 真实授权未实现。

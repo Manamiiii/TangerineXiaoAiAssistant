@@ -38,6 +38,10 @@ licensing terms if adding PyQt in the future.
 | pycaw | MIT | Windows Core Audio interfaces and device access |
 | comtypes | MIT | COM interop used by pycaw |
 | psutil | BSD-3-Clause | Required by pycaw; no system-monitoring feature is exposed |
+| pystray | LGPL-3.0-or-later | Windows system tray; Copyright 2016–2022 Moses Palmér |
+| Pillow | MIT-CMU and included third-party notices | Icon and QR image display |
+| six | MIT | pystray compatibility dependency |
+| Tcl/Tk | BSD-style terms in the Python license and Tk license.terms | Settings window |
 | Python | PSF License and included third-party notices | Embedded runtime in exe |
 | PyInstaller | GPL-2.0-or-later with distribution exception | Build tool and bootloader |
 
@@ -50,3 +54,19 @@ The dependency versions tested are recorded in requirements-runtime.lock and
 requirements-build.lock. Public binary release should retain this notice and the
 complete bundled license directory. This package is an unsigned portable
 test build, not an installer or a device-validated production release.
+
+## pystray source and relinking
+
+This application uses pystray 0.19.5, covered by LGPL-3.0-or-later. Both the full
+GNU GPL and GNU LGPL texts are included under `licenses/runtime/pystray/`.
+The portable package includes the unmodified, complete upstream source archive
+and corresponding application source/build scripts under `source/`. The build
+checks that installed pystray Python sources match the accompanying archive.
+
+Modification of the library portions and reverse engineering for debugging such
+modifications are permitted. The accompanying application code may be used,
+modified, rebuilt, recombined and redistributed for this purpose; third-party
+licenses remain applicable. No signing key, activation or installation secret is
+required to run a rebuilt executable. See [rebuild instructions](docs/DESKTOP.md#依赖源码和重建),
+including `scripts/build.py --pystray-source` for a modified corresponding archive.
+Upstream terms: [pystray LGPL](https://github.com/moses-palmer/pystray/blob/v0.19.5/COPYING.LGPL).

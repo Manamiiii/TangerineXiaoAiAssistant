@@ -1,5 +1,6 @@
 from copy import deepcopy
 import unittest
+import threading
 from unittest.mock import Mock
 
 from xiaoai_pc.bridge import Bridge, VoiceGate, timestamp_ms
@@ -48,7 +49,11 @@ class BridgeTests(unittest.TestCase):
         self.handler = Mock(return_value=Result(True, "browser_requested", "已请求打开网页"))
         self.now = BASE / 1000
         self.stop = Mock()
-        self.stop.is_set.side_effect = [False, False, True]
+        self.stop.is_set.return_value = False
+        def wait(_):
+            if self.stop.wait.call_count >= 2:
+                self.stop.is_set.return_value = True
+        self.stop.wait.side_effect = wait
         bridge = Bridge(self.speaker, CommandRouter(self.config, {"open_url": self.handler}), self.config,
                         clock=lambda: self.now, stop=self.stop)
         return bridge
@@ -90,6 +95,19 @@ class BridgeTests(unittest.TestCase):
         bridge.poll_once()
         self.now += 2
         self.speaker.latest.return_value = [message()]
+        bridge.poll_once()
+        self.handler.assert_not_called()
+        self.speaker.say.assert_not_called()
+
+    def test_stop_during_network_read_does_not_execute_returned_command(self):
+        bridge = self.make_bridge()
+        bridge.stop = threading.Event()
+        bridge.poll_once()
+        self.now += 2
+        def latest():
+            bridge.stop.set()
+            return [message()]
+        self.speaker.latest.side_effect = latest
         bridge.poll_once()
         self.handler.assert_not_called()
         self.speaker.say.assert_not_called()

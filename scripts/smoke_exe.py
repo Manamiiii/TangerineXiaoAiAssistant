@@ -47,10 +47,18 @@ def main():
             assert 0 <= audio["volume_percent"] <= 100 and isinstance(audio["muted"], bool)
         run("test-command", "让电脑打开B站 & calc", expected=2)
         run("run", expected=2)
+        desktop = executable.with_name("TangerineXiaoAiAssistant-Desktop.exe")
+        desktop_result = subprocess.run([str(desktop), "--data-dir", folder, "desktop", "--smoke-test"],
+                                        env=env, cwd=folder, timeout=45)
+        if desktop_result.returncode != 0:
+            raise RuntimeError("Frozen desktop / Tk / tray smoke failed")
+        # The desktop must have released its lock before another process starts.
+        run("init")
         assert not (Path(folder) / "xiaomi.dpapi").exists()
     print("Frozen smoke: PASS (all command dry-runs / app registration / upgrade / injection rejection / missing login; no Python on PATH)")
     if args.check_audio:
         print("Frozen Core Audio read-only check: PASS")
+    print("Frozen desktop smoke: PASS (Tk widgets / real tray / clean exit / released lock)")
 
 
 if __name__ == "__main__":

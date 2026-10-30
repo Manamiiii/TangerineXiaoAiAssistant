@@ -28,6 +28,9 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--data-dir", type=Path, help="覆盖本地数据目录（默认 LOCALAPPDATA）")
     root.add_argument("--config", type=Path, help="覆盖非敏感 JSON 配置路径")
     sub = root.add_subparsers(dest="command")
+    desktop = sub.add_parser("desktop", help="打开设置窗口与 Windows 托盘")
+    desktop.add_argument("--hidden", action="store_true", help="收起到托盘并使用已保存设置开始监听")
+    desktop.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
     sub.add_parser("init", help="生成默认配置，不覆盖现有文件")
     sub.add_parser("enable-local-commands", help="向旧配置补入音量和锁屏规则，保留设备与自定义命令")
     app = sub.add_parser("add-app", help="登记应用 EXE 白名单，不会启动应用")
@@ -111,6 +114,9 @@ def qr_login(account: SecureAccount, directory: Path) -> None:
 
 
 def perform(args, directory: Path, config_path: Path) -> int:
+    if args.command == "desktop":
+        from .desktop import run
+        return run(directory, config_path, hidden=args.hidden, smoke=args.smoke_test)
     if args.command == "init":
         if config_path.exists():
             config.load(config_path)
@@ -206,6 +212,12 @@ def main(argv=None) -> int:
             stream.reconfigure(encoding="utf-8", errors="replace")
     root = parser()
     args = root.parse_args(argv)
+    def report(message):
+        if args.command == "desktop" and not args.smoke_test:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, message, "小爱电脑助手", 0x10)
+        elif sys.stderr is not None:
+            print(message, file=sys.stderr)
     if args.command is None:
         root.print_help()
         return 0
@@ -218,12 +230,16 @@ def main(argv=None) -> int:
         print("\n已停止。")
         return 130
     except (config.ConfigError, SecretStoreError, XiaomiAuthError, MiNAProtocolError) as error:
-        print(str(error), file=sys.stderr)
+        report(str(error))
         return 2
     except RuntimeError as error:
         # Only application-authored RuntimeErrors may carry friendly local instructions.
-        print(str(error), file=sys.stderr)
+        report(str(error))
         return 2
     except Exception:
-        print("操作失败，请检查网络、账号或设备；未记录异常原文以保护凭据。", file=sys.stderr)
+        report("操作失败，请检查网络、账号或设备；未记录异常原文以保护凭据。")
         return 2
+
+
+def desktop_main():
+    return main(sys.argv[1:] or ["desktop"])
