@@ -1,0 +1,16 @@
+{
+  "trigger_prefixes": ["让电脑"],
+  "xiaomi": {"device_id": ""},
+  "poll_interval_seconds": 3,
+  "max_command_age_seconds": 30,
+  "tts_reply": true,
+  "commands": [
+    {
+      "id": "open_bilibili",
+      "action": "open_url",
+      "phrases": ["打开B站", "打开哔哩哔哩", "打开哔哩", "打开bilibili"],
+      "url": "https://www.bilibili.com",
+      "reply": "已请求电脑打开B站"
+    }
+  ]
+}
