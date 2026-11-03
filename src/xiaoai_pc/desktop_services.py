@@ -4,6 +4,7 @@ import time
 from . import config
 from .bridge import Bridge
 from .commands import CommandRouter
+from .desktop_model import device_status
 from .secure import SecretStore
 from .vendor.voxnode.account import MiAccount, SID_MINA
 from .vendor.voxnode.mina import MiNA
@@ -37,10 +38,15 @@ def login(directory, stop, emit):
                     return
                 SecretStore(directory / "xiaomi.dpapi").save(account.token)
                 emit("status", "登录已保存；正在获取音箱列表…")
-                devices = MiNA(account).device_list()
+                try:
+                    devices = MiNA(account).device_list()
+                except Exception:
+                    if not stop.is_set():
+                        emit("error", "登录已保存，但音箱列表获取失败。请先点击“刷新音箱”重试，无需立即重新扫码。")
+                    return
                 if not stop.is_set():
                     emit("devices", devices)
-                    emit("status", "登录成功，请选择音箱并保存设置")
+                    emit("status", device_status(devices))
                 return
             if state in (EXPIRED, FAILED):
                 raise config.ConfigError("二维码已失效，请重新点击扫码登录。")
@@ -63,7 +69,7 @@ def devices(directory, stop, emit):
         result = MiNA(account).device_list()
         if not stop.is_set():
             emit("devices", result)
-            emit("status", "设备列表已刷新，请选择音箱并保存")
+            emit("status", device_status(result))
     finally:
         account.close()
 

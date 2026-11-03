@@ -36,7 +36,7 @@ class XiaomiSpeaker:
         if not self._validated:
             devices = self.mina.device_list()
             if not any(str(d.get("deviceID", "")) == self.device_id for d in devices):
-                raise MiNAProtocolError("所选音箱不在当前账号中，请运行 devices --select。")
+                raise MiNAProtocolError("所选音箱不在当前账号中，请刷新音箱并重新选择、保存（CLI：devices --select）。")
             self._validated = True
 
     def latest(self) -> list[dict]:
@@ -51,4 +51,4 @@ class XiaomiSpeaker:
 
 def require_login(account: SecureAccount) -> None:
     if not account.is_logged_in(SID_MINA) and not account.token.get("passToken"):
-        raise XiaomiAuthError("尚未登录小米账号，请先运行 login。")
+        raise XiaomiAuthError("尚未登录小米账号，请点击“扫码登录小米”（CLI：login）。")

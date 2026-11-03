@@ -10,6 +10,9 @@ research/
 config.json
 *.dpapi
 *.log
+*.log.*
+*.bak
+*.tmp
 *.lock
 !requirements-runtime.lock
 !requirements-build.lock

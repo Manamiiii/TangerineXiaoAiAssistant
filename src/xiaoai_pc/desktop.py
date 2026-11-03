@@ -13,7 +13,9 @@ from PIL import Image, ImageDraw, ImageTk
 import pystray
 
 from . import __version__, config, desktop_services as services, startup
-from .desktop_model import Jobs, add_app, add_site
+from .desktop_model import Jobs, add_app, add_site, selectable_devices
+from .secure import SecretStore
+from .commands import CommandRouter
 from .runtime import configure_logging
 
 STATES = {"starting": "正在连接音箱…", "listening": "正在监听，可以说指令", "reconnecting": "连接中断，正在自动重连…",
@@ -41,7 +43,9 @@ class QueueLog(logging.Handler):
 class Desktop:
     def __init__(self, root, directory, config_path, *, hidden=False, smoke=False):
         self.root, self.directory, self.config_path = root, directory, config_path
-        self.data = config.load(config_path)
+        self.data, self.saved_content = config.load_snapshot(config_path)
+        self.saved_data = deepcopy(self.data)
+        self.devices_loaded = False
         self.jobs = Jobs()
         self.closing = False
         self.smoke = smoke
@@ -58,7 +62,7 @@ class Desktop:
         style = ttk.Style(root)
         if "vista" in style.theme_names():
             style.theme_use("vista")
-        self.status = tk.StringVar(value="先登录并选择音箱，再保存设置、开始监听")
+        self.status = tk.StringVar(value="先扫码登录 → 选择音箱 → 保存设置 → 检查连接 → 开始监听")
         outer = ttk.Frame(root, padding=18)
         outer.pack(fill="both", expand=True)
         ttk.Label(outer, text="小爱电脑助手", font=("Microsoft YaHei UI", 18, "bold")).pack(anchor="w")
@@ -82,6 +86,7 @@ class Desktop:
         self.button(row, "扫码登录小米", self.login)
         self.button(row, "刷新音箱", self.refresh_devices)
         self.button(row, "检查连接", self.probe)
+        self.button(row, "退出小米登录", self.logout)
         ttk.Label(settings, text="使用的音箱").pack(anchor="w")
         self.devices = ttk.Combobox(settings, state="readonly")
         self.devices.pack(fill="x", pady=(4, 12))
@@ -99,13 +104,20 @@ class Desktop:
         ttk.Spinbox(row, from_=2, to=60, width=7, textvariable=self.poll).pack(side="left", padx=10)
         self.tts = tk.BooleanVar(value=self.data["tts_reply"])
         ttk.Checkbutton(settings, text="通过音箱播报简短执行结果", variable=self.tts).pack(anchor="w", pady=5)
-        self.auto = tk.BooleanVar(value=bool(startup.read()))
-        ttk.Checkbutton(settings, text="登录 Windows 后自动启动并监听（保存后生效）", variable=self.auto).pack(anchor="w", pady=5)
+        self.startup_available = True
+        try:
+            self.saved_auto = bool(startup.read())
+        except OSError:
+            self.saved_auto = False
+            self.startup_available = False
+            self.status.set("无法读取自启设置，仍可手动使用；本次不会更改开机自启")
+        self.auto = tk.BooleanVar(value=self.saved_auto)
+        ttk.Checkbutton(settings, text="登录 Windows 后自动启动并监听（保存后生效）", variable=self.auto,
+                        state="normal" if self.startup_available else "disabled").pack(anchor="w", pady=5)
         ttk.Label(settings, text="自启仅作用于当前 Windows 账号。移动程序目录后，请重新保存自启设置。",
                   wraplength=700).pack(anchor="w", pady=(2, 10))
         ttk.Label(settings, text="修改后请点击“保存设置”。监听使用已保存的设置；关闭窗口会收起到托盘。",
                   wraplength=700).pack(anchor="w", pady=10)
-        self.button(settings, "保存设置", self.save_settings)
         self.tree = ttk.Treeview(commands, columns=("phrase", "action"), show="headings", height=11)
         self.tree.heading("phrase", text="可说的命令示例（前面加触发词）")
         self.tree.heading("action", text="操作")
@@ -118,12 +130,18 @@ class Desktop:
         self.button(row, "添加应用", self.add_application)
         self.button(row, "移除所选", self.remove_command)
         self.button(row, "补入音量 / 锁屏", self.upgrade)
-        ttk.Label(commands, text="名称可作为语音别名；同名应用可重新登记路径。更改后到“连接与设置”保存。",
+        self.button(row, "演练所选", self.preview_command)
+        ttk.Label(commands, text="先选中命令可演练匹配，不执行电脑动作。更改后点击窗口底部“保存设置”。",
                   wraplength=700).pack(anchor="w")
         self.log = tk.Text(log, state="disabled", wrap="word", height=14, font=("Microsoft YaHei UI", 9))
         self.log.pack(fill="both", expand=True)
         ttk.Button(log, text="打开日志目录", command=lambda: os.startfile(str(directory))).pack(anchor="w", pady=8)
-        ttk.Button(outer, text="退出助手", command=self.exit).pack(anchor="e", pady=(12, 0))
+        footer = ttk.Frame(outer)
+        footer.pack(fill="x", pady=(12, 0))
+        self.button(footer, "保存设置", self.save_settings)
+        self.dirty_status = tk.StringVar(value="已保存")
+        ttk.Label(footer, textvariable=self.dirty_status).pack(side="left", padx=8)
+        ttk.Button(footer, text="退出助手", command=self.exit).pack(side="right")
         self.refresh_commands()
         configure_logging(directory)
         self.log_handler = QueueLog(self.jobs)
@@ -193,28 +211,49 @@ class Desktop:
         index = self.devices.current()
         if index >= 0:
             data["xiaomi"]["device_id"] = self.device_ids[index]
+        elif self.devices_loaded:
+            data["xiaomi"]["device_id"] = ""
         return config.validate(data)
+
+    def is_dirty(self):
+        try:
+            return self.draft() != self.saved_data or self.auto.get() != self.saved_auto
+        except config.ConfigError:
+            return True
+
+    def ensure_saved(self):
+        if not self.is_dirty():
+            return True
+        if not messagebox.askokcancel("先保存更改", "当前有未保存的更改。保存成功后继续？", parent=self.root):
+            return False
+        return self.save_settings()
 
     def save_settings(self):
         if self.jobs.busy:
-            return
+            return False
         try:
             data = self.draft()
             if self.auto.get():
                 startup.command_line(self.directory, self.config_path)
-            config.save(self.config_path, data)
+            config.save(self.config_path, data, expected_content=self.saved_content)
             self.data = data
+            self.saved_data = deepcopy(data)
+            self.saved_content = self.config_path.read_bytes()
         except (config.ConfigError, RuntimeError) as error:
             messagebox.showerror("设置未保存", str(error), parent=self.root)
-            return
+            return False
         except OSError:
             messagebox.showerror("设置未保存", "无法写入配置，请检查目录权限。", parent=self.root)
-            return
+            return False
         try:
-            startup.set_enabled(self.auto.get(), self.directory, self.config_path)
-            self.set_status("设置已保存，可开始监听")
-        except OSError:
-            self.set_status("配置已保存，但自启设置未更改；请检查当前账号权限")
+            if self.startup_available:
+                startup.set_enabled(self.auto.get(), self.directory, self.config_path)
+                self.saved_auto = self.auto.get()
+            self.set_status("设置已保存，可检查连接或开始监听" if data["xiaomi"]["device_id"] else "设置已保存；请登录并选择音箱")
+            return True
+        except (OSError, RuntimeError):
+            self.set_status("配置已保存，但自启设置未保存；请重试或取消自启选项")
+            return False
 
     def start_job(self, name, worker):
         if self.closing:
@@ -229,7 +268,20 @@ class Desktop:
     def refresh_devices(self):
         self.start_job("devices", lambda stop, emit: services.devices(self.directory, stop, emit))
 
+    def logout(self):
+        if self.jobs.busy or self.closing:
+            return
+        if not messagebox.askokcancel("退出小米登录", "删除本机保存的小米登录凭据？音箱绑定和命令配置会保留。", parent=self.root):
+            return
+        try:
+            SecretStore(self.directory / "xiaomi.dpapi").clear()
+            self.set_status("已删除本机登录凭据；再次使用时请扫码登录")
+        except OSError:
+            self.set_status("未能删除登录凭据，请检查数据目录权限后重试")
+
     def probe(self):
+        if self.jobs.busy or self.closing or not self.ensure_saved():
+            return
         try:
             data = config.load(self.config_path)
         except config.ConfigError as error:
@@ -239,6 +291,8 @@ class Desktop:
 
     def start_listener(self):
         if self.jobs.busy or self.closing:
+            return
+        if not self.ensure_saved():
             return
         try:
             data = config.load(self.config_path)
@@ -253,7 +307,8 @@ class Desktop:
             self.set_status("正在停止，等待当前网络请求结束…")
 
     def show_devices(self, devices):
-        devices = [d for d in devices if d.get("deviceID") and d.get("hardware")]
+        devices = selectable_devices(devices)
+        self.devices_loaded = True
         self.device_ids = [str(d["deviceID"]) for d in devices]
         self.devices["values"] = [f"{d.get('name') or d.get('alias') or '未命名音箱'} ({d['hardware']})" for d in devices]
         saved = self.data["xiaomi"]["device_id"]
@@ -272,7 +327,7 @@ class Desktop:
         if data is None or self.closing:
             return
         try:
-            image = Image.open(BytesIO(data))
+            image = Image.open(BytesIO(data), formats=("PNG",))
             if image.width > 1024 or image.height > 1024:
                 raise ValueError
             self.qr_photo = ImageTk.PhotoImage(image.resize((300, 300)))
@@ -300,6 +355,7 @@ class Desktop:
             try:
                 self.data = add_app(self.data, name, path)
                 self.refresh_commands()
+                self.set_status("应用已登记到待保存列表；点击底部“保存设置”生效")
             except config.ConfigError as error:
                 messagebox.showerror("无法登记", str(error), parent=self.root)
 
@@ -312,18 +368,43 @@ class Desktop:
             try:
                 self.data = add_site(self.data, name, url.strip())
                 self.refresh_commands()
+                self.set_status("网页已添加到待保存列表；点击底部“保存设置”生效")
             except config.ConfigError as error:
                 messagebox.showerror("无法添加", str(error), parent=self.root)
 
     def remove_command(self):
         selected = set(self.tree.selection())
+        if not selected:
+            self.set_status("请先选中要移除的命令")
+            return
+        if not messagebox.askokcancel("移除命令", f"从配置中移除选中的 {len(selected)} 条规则？不会删除应用或网页。", parent=self.root):
+            return
         self.data["commands"] = [c for c in self.data["commands"] if c["id"] not in selected]
         self.refresh_commands()
+        self.set_status("命令已从待保存列表移除；保存后生效")
+
+    def preview_command(self):
+        selected = self.tree.selection()
+        if not selected:
+            self.set_status("请先选中一条命令，再点击演练")
+            return
+        try:
+            data = self.draft()
+            command = next(c for c in data["commands"] if c["id"] == selected[0])
+            phrase = data["trigger_prefixes"][0] + command["phrases"][0].replace("{level}", "30")
+            matched = CommandRouter(data).match(phrase)
+            if matched is None or matched["id"] != command["id"]:
+                self.set_status("演练未匹配唯一规则，请检查触发词和命令是否冲突；未执行动作")
+            else:
+                self.set_status("演练匹配成功，未执行动作、未连接音箱；示例：“" + phrase + "”")
+        except config.ConfigError as error:
+            self.set_status(str(error))
 
     def upgrade(self):
         try:
-            self.data, _ = config.add_local_commands(self.data)
+            self.data, count = config.add_local_commands(self.data)
             self.refresh_commands()
+            self.set_status(f"已补入 {count} 条规则；更改后请保存" if count else "已有音量和锁屏规则，无需补入")
         except config.ConfigError as error:
             messagebox.showerror("无法补入规则", str(error), parent=self.root)
 
@@ -331,6 +412,7 @@ class Desktop:
         for button in self.buttons:
             button["state"] = "disabled" if self.jobs.busy or self.closing else "normal"
         self.stop_button["state"] = "normal" if self.jobs.busy and not self.closing else "disabled"
+        self.dirty_status.set("有未保存的更改" if self.is_dirty() else "已保存")
 
     def pump(self):
         try:
@@ -340,8 +422,12 @@ class Desktop:
                     {"show": self.show, "start": self.start_listener, "stop": self.stop, "exit": self.exit}[value]()
                 elif kind in ("status", "error") and not self.closing:
                     self.set_status(value)
+                    if kind == "error":
+                        self.show()
                 elif kind == "bridge_state" and not self.closing:
                     self.set_status(STATES.get(value, value))
+                    if value in ("auth_required", "device_error"):
+                        self.show()
                 elif kind == "devices":
                     self.show_devices(value)
                 elif kind == "qr":
@@ -387,6 +473,12 @@ class Desktop:
         self.root.lift()
 
     def exit(self):
+        if self.closing:
+            return
+        if not self.smoke and self.is_dirty():
+            choice = messagebox.askyesnocancel("尚未保存", "保存当前更改后退出？\n选“否”会放弃本次未保存的更改。", parent=self.root)
+            if choice is None or (choice and not self.save_settings()):
+                return
         self.closing = True
         self.jobs.stop()
         self.show_qr(None)
@@ -394,8 +486,19 @@ class Desktop:
         self.update_buttons()
 
     def finish_smoke(self):
-        self.smoke_ok = self.tray_ready.is_set() and self.icon.visible and bool(self.tree.get_children())
-        self.exit()
+        try:
+            # Exercise the same PNG / Tk bridge used by QR display without logging in.
+            data = BytesIO()
+            tray_image().save(data, format="PNG")
+            data.seek(0)
+            with Image.open(data, formats=("PNG",)) as picture:
+                self.smoke_photo = ImageTk.PhotoImage(picture)
+            self.smoke_ok = (self.tray_ready.is_set() and self.icon.visible
+                             and bool(self.tree.get_children()) and self.smoke_photo.width() == 64)
+        except Exception:
+            self.smoke_ok = False
+        finally:
+            self.exit()
 
 
 def run(directory, config_path, *, hidden=False, smoke=False):

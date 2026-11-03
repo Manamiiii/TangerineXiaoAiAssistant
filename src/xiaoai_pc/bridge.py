@@ -12,6 +12,17 @@ from .vendor.voxnode.account import XiaomiAuthError
 from .vendor.voxnode.mina import MiNAProtocolError
 
 LOG = logging.getLogger("xiaoai_pc")
+RESULT_LABELS = {
+    "unmatched": "未匹配唯一命令，请检查触发词和命令示例",
+    "browser_requested": "已请求浏览器打开网页",
+    "browser_failed": "浏览器启动失败，请检查默认浏览器",
+    "app_requested": "已请求启动已配置应用",
+    "volume_set": "系统音量已设置",
+    "lock_requested": "已请求 Windows 锁屏",
+    "dry_run": "演练匹配成功，未执行动作",
+    "execution_failed": "执行失败，请检查应用路径、默认播放设备或桌面会话",
+    "unsupported_action": "命令尚未启用",
+}
 
 
 class Speaker(Protocol):
@@ -90,7 +101,7 @@ class Bridge:
             if self.stop.is_set():
                 return
             result = self.router.execute(query, dry_run=self.dry_run)
-            LOG.info("命令结果：%s", result.code)
+            LOG.info("命令结果：%s（%s）", result.code, RESULT_LABELS.get(result.code, "请检查本地设置"))
             if result.reply and self.config["tts_reply"] and not self.dry_run and not self.stop.is_set():
                 try:
                     if not self.speaker.say(result.reply):

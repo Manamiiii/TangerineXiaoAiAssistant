@@ -1,5 +1,7 @@
 # 0.3.0 桌面版
 
+本页保留 0.3.0 的实现说明。**本地 0.3.1.dev0 尚未发布**：保存按钮已移至全局底部，增加未保存保护、配置备份、命令演练和退出小米登录；最新操作步骤见 [首次使用与排错](QUICKSTART.md)。下文中“到连接页保存”等描述适用于已发布 0.3.0。
+
 完整解压便携包，双击 `TangerineXiaoAiAssistant-Desktop.exe`。首次打开自动建立默认配置；不会自动登录或开启开机自启。
 
 ## 使用
@@ -39,4 +41,6 @@
 
 允许修改本程序中与该库结合的部分、为调试库修改进行逆向工程，并使用随附应用源码重建、重新组合和分发修改后的组合程序；第三方代码继续遵守各自许可。无需签名密钥或安装授权即可运行自行重建的 exe。
 
-在 Windows 安装 Python 3.12 x64（包含 Tcl/Tk），解压应用源码，按 README“开发”步骤安装固定构建依赖并运行 `python scripts/build.py`。若要替换 pystray：解压它的源码，修改 `lib/pystray/` 后安装这个目录的项目（`python -m pip install --no-deps --no-build-isolation 路径`）；把修改后的源码目录重新压缩为 zip，保留顶层 `pystray-0.19.5/`，运行 `python scripts/build.py --pystray-source 修改后的源码.zip`。构建脚本会校验已安装库源码与提供的源码一致，并把它一起打入包。接口兼容的修改不受程序额外限制。
+在 Windows 安装 Python 3.12 x64（包含 Tcl/Tk），解压应用源码，按 [源码运行与构建](DEVELOPMENT.md) 安装固定构建依赖并运行 `python scripts/build.py`。若要替换 pystray：解压它的源码，修改 `lib/pystray/` 后安装这个目录的项目（`python -m pip install --no-deps --no-build-isolation 路径`）；把修改后的源码目录重新压缩为 zip，保留顶层 `pystray-0.19.5/`，运行 `python scripts/build.py --pystray-source 修改后的源码.zip`。构建脚本会校验已安装库源码与提供的源码一致，并把它一起打入包。接口兼容的修改不受程序额外限制。
+
+改进版构建输出在 `dist/<版本号>/`。已有输出不会被覆盖，重新构建需传 `--output-dir 新目录`；`smoke_exe.py --package-dir 新目录/TangerineXiaoAiAssistant` 检查对应包。构建只打包 `scripts/source-files.txt` 中明确列出的项目文件，源码归档包含这份清单，不依赖 Git 才能重建。

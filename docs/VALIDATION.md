@@ -2,6 +2,17 @@
 
 日期：2026-10-30（Asia/Shanghai）。环境：Windows 11 专业版 10.0.26300 x64，Python 3.12.10。
 
+## 公开体验审查增量：0.3.1.dev0（开发版，尚无 Release 包）
+
+- 全部 73 项测试通过，新增 14 项保存/恢复、界面流程、错误提示、PNG 边界和打包隔离回归；`pip check` 通过。
+- 实际原生窗口检查：全局保存按钮、命令页演练、未保存提示、保存反馈、退出；演练锁屏没有锁住桌面。截图保存在 `docs/images/commands-preview.jpg`，标注为未发布版本地演练。
+- 实际保存后验证 config.json 的新值与 config.json.bak 的旧值一致；没有改动默认数据目录，没有为本机启用自启。
+- 构建成功，首次产物位于 `build/public-review-artifacts/`；`smoke_exe.py --package-dir build/public-review-artifacts/TangerineXiaoAiAssistant --check-audio` 通过。清除 Python PATH 后，CLI 演练/拒绝注入/登记/升级、桌面 Tk 和真实托盘创建退出、锁释放及 Core Audio 只读均成功。
+- 将已核对的 ZIP 解压到含中文与空格的独立路径后，再次通过 CLI/桌面成品 smoke；配置保存也在临时数据目录中验证，没有使用真实账号。
+- ZIP CRC、文件名清单通过，含真实截图及对应库/应用源码，未包含实际配置、凭据、日志或备份。旧 0.3.0 ZIP SHA256 仍为 `9951d234667c84d0d288fcd2ba8d5e65bf4cd14deb77557307e7afcc0811c4da`，未被覆盖。
+- 查询 18 个固定运行/构建依赖的 OSV 公告，旧 Pillow 命中受影响版本；更新至 13.0.0 后无版本匹配项。对历史 4 个提交 / 77 个唯一 blob 的有限凭据模式扫描无候选；不代表完整安全认证。
+- 原审查阶段仅只读核验 GitHub Description/Topics/License。2026-11-03 用户授权将源码、README 和 GPL v3 许可材料同步到 main；不新建 Release、不修改 About/Topics。真实音箱验收范围仍未变化。
+
 ## 已执行
 
 - `python -m unittest discover -s tests -v`：0.3.0 共 59 项通过（0.2.0 为 44 项，0.1.0 为 28 项）。

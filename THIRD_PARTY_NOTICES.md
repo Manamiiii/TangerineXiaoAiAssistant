@@ -1,5 +1,16 @@
 # Third-party notices
 
+## Project license
+
+Copyright (c) 2026 TangerineXiaoAiAssistant contributors.
+
+Except for separately identified third-party material, this project's original
+code is licensed under the GNU General Public License, version 3 only
+(SPDX: GPL-3.0-only). You may redistribute and modify it under those terms.
+It is distributed without any warranty, including the implied warranties of
+merchantability or fitness for a particular purpose. See [LICENSE](LICENSE)
+for the complete terms. Third-party copyright and license notices below are retained.
+
 ## Vendored VoxNode code
 
 The files `src/xiaoai_pc/vendor/voxnode/account.py`, `qrlogin.py`, and `mina.py`
@@ -54,6 +65,14 @@ The dependency versions tested are recorded in requirements-runtime.lock and
 requirements-build.lock. Public binary release should retain this notice and the
 complete bundled license directory. This package is an unsigned portable
 test build, not an installer or a device-validated production release.
+
+The project license was selected by the author on 2026-11-03 and is included
+in the source tree. Previously published ZIPs and the existing local
+installation have not been repackaged with these license materials. The MIT
+notices for vendored components do not license all application code. Existing
+pystray modification/relinking permissions below remain in effect. The
+0.3.1.dev0 development source updates Pillow to 13.0.0 and packages only explicitly listed
+project files from a fresh staging directory; this does not update old releases.
 
 ## pystray source and relinking
 

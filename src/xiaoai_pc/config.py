@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -145,18 +146,48 @@ def add_local_commands(data: dict) -> tuple[dict, int]:
     return validate(result), count
 
 
-def load(path: Path) -> dict:
+def load_snapshot(path: Path) -> tuple[dict, bytes]:
     try:
-        return validate(json.loads(path.read_text(encoding="utf-8-sig")))
+        content = path.read_bytes()
+        return validate(json.loads(content.decode("utf-8-sig"))), content
     except (OSError, ValueError) as error:
         if isinstance(error, ConfigError):
             raise
-        raise ConfigError("配置无法读取，请检查 JSON 格式或先运行 init。") from None
+        raise ConfigError("配置无法读取。请打开数据目录检查 config.json；若有 config.json.bak，可退出助手后用它恢复。首次使用可运行 init。") from None
 
 
-def save(path: Path, data: dict) -> None:
+def load(path: Path) -> dict:
+    return load_snapshot(path)[0]
+
+
+def _atomic_write(path: Path, content: bytes) -> None:
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=path.name + ".", suffix=".tmp", delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def save(path: Path, data: dict, *, expected_content: bytes | None = None) -> None:
     data = validate(data)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    previous = path.read_bytes() if path.exists() else None
+    if expected_content is not None and previous != expected_content:
+        raise ConfigError("配置已被其他程序修改，未覆盖文件。请先保留当前修改，再退出并重新打开助手。")
+    content = (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    if previous == content:
+        return
+    if previous is not None:
+        # Keep one previous valid configuration; never replace it with corrupt JSON.
+        try:
+            validate(json.loads(previous.decode("utf-8-sig")))
+        except (ValueError, UnicodeError):
+            raise ConfigError("现有配置损坏，未覆盖文件或备份；请先手动恢复配置。") from None
+        _atomic_write(path.with_name(path.name + ".bak"), previous)
+    _atomic_write(path, content)

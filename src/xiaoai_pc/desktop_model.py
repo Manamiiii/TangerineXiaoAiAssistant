@@ -10,6 +10,33 @@ from .windows_actions import validate_app_path
 from .secure import SecretStoreError
 from .vendor.voxnode.account import XiaomiAuthError
 from .vendor.voxnode.mina import MiNAProtocolError
+from .vendor.voxnode.account import XiaomiServiceError
+from .vendor.voxnode.qrlogin import QrLoginError
+import requests
+
+
+def selectable_devices(devices):
+    return [d for d in devices if isinstance(d, dict) and d.get("deviceID") and d.get("hardware")]
+
+
+def device_status(devices):
+    count = len(selectable_devices(devices))
+    if not count:
+        return "未找到可选音箱。请确认登录的是绑定音箱的小米账号；可重新扫码或稍后刷新音箱。"
+    return f"找到 {count} 台音箱，请选择后保存设置，再检查连接"
+
+
+def friendly_error(error):
+    if isinstance(error, (config.ConfigError, SecretStoreError, XiaomiAuthError, MiNAProtocolError,
+                          XiaomiServiceError, QrLoginError)):
+        return str(error)
+    if isinstance(error, requests.exceptions.SSLError):
+        return "安全连接验证失败。请检查系统日期、代理和网络后重试；不要关闭证书验证。"
+    if isinstance(error, requests.Timeout):
+        return "连接超时，请检查网络后重试；尚未完成的扫码可重新发起。"
+    if isinstance(error, requests.RequestException):
+        return "无法连接小米服务，请检查网络或代理后重试。"
+    return "操作未完成，请检查网络、登录状态和音箱选择。"
 
 
 def add_app(data: dict, name: str, path: str) -> dict:
@@ -68,10 +95,8 @@ class Jobs:
         def target():
             try:
                 work(self.cancel, self.emit)
-            except (config.ConfigError, SecretStoreError, XiaomiAuthError, MiNAProtocolError) as error:
-                self.emit("error", str(error))
-            except Exception:
-                self.emit("error", "操作未完成，请检查网络、登录状态和音箱选择。")
+            except Exception as error:
+                self.emit("error", friendly_error(error))
             finally:
                 self.emit("finished", name)
         self.thread = threading.Thread(target=target, name="xiaoai-" + name, daemon=False)

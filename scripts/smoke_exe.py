@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import tempfile
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -12,8 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--check-audio", action="store_true", help="read-only check on a machine with an audio output")
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["project"]["version"]
+    parser.add_argument("--package-dir", type=Path, default=ROOT / "dist" / version / "TangerineXiaoAiAssistant")
     args = parser.parse_args()
-    executable = ROOT / "dist" / "TangerineXiaoAiAssistant" / "TangerineXiaoAiAssistant.exe"
+    executable = (args.package_dir / "TangerineXiaoAiAssistant.exe").resolve()
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
