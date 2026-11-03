@@ -16,6 +16,7 @@ docs/PRIVACY.md
 docs/PUBLIC_REVIEW.md
 docs/QUICKSTART.md
 docs/RESEARCH.md
+docs/RELEASE_REVIEW.md
 docs/VALIDATION.md
 docs/WORKBUDDY.md
 docs/images/commands-preview.jpg

@@ -34,30 +34,42 @@
 
 ## 下载与版本
 
+**本轮 Windows 安装版是 0.4.0 Setup，目前只有本地验收候选包，尚未在 GitHub 提供下载。请等待验收后发布，不要把 Releases 中的 0.3.0 ZIP 当成安装版。**
+
 | 版本 | 状态 | 获取方式 |
 |---|---|---|
-| **0.3.0** | 已发布的 Windows x64 便携测试版 | [打开 Releases 下载页](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases/tag/v0.3.0) |
-| **0.4.0** | main 分支安装版源码 | 可构建 Windows x64 Setup 和 Portable；尚未发布下载包，[安装与构建说明](docs/INSTALLER.md) |
+| **0.4.0** | Windows x64 Setup / Portable，本地候选、待验收 | 暂无公开安装包；main 提供[安装与构建说明](docs/INSTALLER.md) |
+| **0.3.0** | 历史 Windows x64 便携测试版，没有安装向导 | [历史 Release](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases/tag/v0.3.0)，不是本轮候选包 |
 
 **旧包 0.3.0 尚未包含开发版的图像依赖安全更新和配置保存防护，建议等待修复版后再尝试。** [查看更新背景与安全边界](docs/PRIVACY.md#分发与依赖)。
 
-如果仍要测试现有版本：在下载页展开 **Assets**，选择 **`TangerineXiaoAiAssistant-0.3.0-windows-x64.zip`**（约 40 MB）。也可[直接下载该 ZIP](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases/download/v0.3.0/TangerineXiaoAiAssistant-0.3.0-windows-x64.zip)。
+0.3.0 还缺少项目自身的 GPL 许可文件；包内第三方许可和源码材料的实际核对结果、拟补充方案见[发布材料核对](docs/RELEASE_REVIEW.md)。更新 main 不会改变已经下载的旧包。
 
-- 这是解压即运行的便携包，**没有安装向导，不需要安装 Python**。
 - GitHub 代码目录没有 `dist`；`Code → Download ZIP` 和 `Source code` 都是源码，不是运行包。
-- 测试包未签名。下载页附有 `SHA256SUMS.txt` 可核对文件一致性，不要关闭 Windows 防护或忽略检测结果。
+- 0.4.0 候选文件名为 `TangerineXiaoAiAssistant-0.4.0-windows-x64-Setup.exe`；独立 Portable 为同版本 `.zip`。运行均不需要 Python。
+- 候选包未签名，附有 `SHA256SUMS.txt`；不要关闭 Windows 防护或忽略检测结果。
+
+<details>
+<summary>仅供核对历史版本：0.3.0 下载位置</summary>
+
+在历史 Release 的 **Assets** 中，`TangerineXiaoAiAssistant-0.3.0-windows-x64.zip` 是解压即运行的旧便携测试包（约 40 MB）。[原 ZIP 下载链接](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases/download/v0.3.0/TangerineXiaoAiAssistant-0.3.0-windows-x64.zip)及旧校验文件未在本轮替换。
+
+</details>
 
 ## 快速开始
 
-当前 Releases 的 0.3.0 仍按下列便携版步骤使用。0.4.0 Setup 安装后可从开始菜单或桌面“安装版”快捷方式启动，升级/卸载默认保留本机数据，详见 [安装版说明](docs/INSTALLER.md)。
+已获得 0.4.0 本地候选包的测试者：运行 Setup，从开始菜单或桌面“安装版”快捷方式启动。升级/卸载默认保留本机数据，详见 [安装版说明](docs/INSTALLER.md)。使用 Portable 时先完整解压，再双击 `TangerineXiaoAiAssistant-Desktop.exe`；不要在压缩包中运行。不带 `-Desktop` 的 EXE 是命令行工具。
 
 准备好 **Windows 10/11 x64 电脑、小爱音箱、绑定音箱的小米账号和米家 App**。电脑与音箱需要联网；电脑需已开机、登录桌面并保持助手运行。不需要管理员权限。目前只在 Windows 11 上验证过本地程序。
 
-1. **完整解压 ZIP**，进入文件夹，双击 **`TangerineXiaoAiAssistant-Desktop.exe`**。不要直接在压缩包中运行；不带 `-Desktop` 的 EXE 是命令行工具。
-2. **扫码登录**：点击“扫码登录小米”，用米家 App 扫码并在手机确认。
-3. **选择并保存音箱**：在下拉框中选音箱，点击“保存设置”。0.3.0 的保存按钮在“连接与设置”页。
-4. **检查连接**：点击“检查连接”，预期显示对话接口返回的记录数量。返回 0 条不一定是错误，但也不证明能收到之后的口令。
-5. **开始监听**：等“正在监听，可以说指令”，再说“让电脑打开 B 站”。预期网页打开一次，等待 10 秒不重复打开；这一步仍需你的实际设备验证。
+真实音箱最小验收（**未验证**，需要你现有的设备与小米账号）：
+
+1. **扫码**：点击“扫码登录小米”，用米家 App 扫码，在手机确认。不要分享二维码或登录凭据。
+2. **选音箱**：选择要控制的音箱并保存设置；确认保留了默认“打开 B 站”网页白名单规则。
+3. **开始监听**：等界面显示正在监听。如果登录、设备列表或监听失败，记录当前步骤和固定错误提示，先停止本次测试。
+4. **只说一次**：“小爱同学，让电脑打开 B 站”。预期默认浏览器打开配置的网址一次；再等 10 秒，期间不重复说口令，确认没有重复打开，然后停止监听。
+
+通过仅代表这台设备的一次链路验收；不代表 TTS、休眠恢复或长期稳定性已验证。无需用锁屏、音量或自启功能验收。“检查连接”可辅助排错；返回记录数量不证明后续语音一定能收到。
 
 “停止 / 取消”可停止监听。**关闭窗口会收起到托盘，完全退出请用“退出助手”或托盘右键“退出”。**
 
@@ -87,6 +99,6 @@
 
 本项目用于开源分享，除另有声明的第三方代码外，采用 **GNU GPL v3（GPL-3.0-only）**。你可以按许可证使用、修改和再分发；软件不提供担保。完整条款见 [LICENSE](LICENSE)。
 
-VoxNode 复用代码及其他依赖保留各自的版权和许可证，详见 [第三方许可与源码说明](THIRD_PARTY_NOTICES.md)。当前源码包含此许可证；此前发布的 0.3.0 ZIP 尚未更新许可材料。
+VoxNode 复用代码及其他依赖保留各自的版权和许可证，详见 [第三方许可与源码说明](THIRD_PARTY_NOTICES.md)。0.4.0 候选包包含项目 GPL 全文、第三方声明、许可目录及项目和 pystray 对应源码；公开 0.3.0 的许可缺项没有因本轮源码更新自动补齐，详见[材料核对与待办](docs/RELEASE_REVIEW.md)。
 
 这是独立第三方个人工具，与小米或腾讯没有从属关系。
