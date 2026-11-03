@@ -18,4 +18,10 @@ config.json
 !requirements-build.lock
 login-qr.png
 .env
+.env.*
+config.*.json
+!config.example.json
+*.lnk
+.idea/
+.vscode/
 data/

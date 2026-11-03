@@ -1,14 +1,14 @@
 # TangerineXiaoAiAssistant
 
-- 用户指定固定开发目录为 `.`，直接在 `main` 开发，不自动创建功能分支。
-- 优先复用已审查的 VoxNode 小米协议代码，不整体导入其 GUI、Android/PWA、监控或智能家居能力。
-- 已交付网页 MVP；用户随后授权继续补齐应用白名单启动、精确音量和锁屏。真实设备验收尚未完成；用户暂时无法做真机测试，不反复要求当前扫码。
-- 用户已授权发布 GitHub Releases 便携测试包并继续开发；0.3.0 补充托盘、简单设置和可选自启。自动测试不得为本机启用自启，注册表写操作使用替身测试。
-- 2026-11-03 用户已授权将本轮审查、首页优化和 GPL v3 许可改动提交并推送到 main；本次不创建 Release、不上传安装包、不修改仓库 About/Topics 设置。后续发布仍以用户最新授权为准。
-- 自动验证不得实际锁住用户桌面；锁屏验证使用替身。音量实机检查只读或回写原值，不改变用户正在使用的音量。
-- 语音只命中白名单；不得执行任意 Shell、从语音拼接路径/网址，或增加 GUI 模拟 WorkBuddy 操作。
-- 凭据使用 Windows 当前用户 DPAPI。禁止提交真实配置、二维码、日志、密码、Token；日志不得输出网络响应原文或语音全文。
-- 上游引用、固定版本和修改记录见 docs/RESEARCH.md 与 THIRD_PARTY_NOTICES.md；修改 vendored 代码时更新说明。
-- 2026-11-03 作者确定本项目用于开源分享，原创代码采用 GPL-3.0-only；保留所有第三方许可证。未来商业项目不自动纳入本仓库，不能将本次授权扩展到其他仓库或自动发布。
-- 核心校验：`.\.venv\Scripts\python.exe -m unittest discover -s tests -v`。构建：`.\.venv\Scripts\python.exe scripts/build.py`。
-- 最终交接说明已完成内容、实际验证与待真机验证项，并给出具体下一步。无需用户立即操作时明确说明，不把待验收等同于完成。
+- 项目采用 GPL-3.0-only；保留复用代码与依赖的原始版权和许可证。
+- 保持轻量 Windows 工具定位，复用已审查的 VoxNode 小米通信代码，不引入 Android/PWA、监控或智能家居平台功能。
+- 语音只匹配白名单，不执行任意 Shell，不从语音拼接路径、网址或参数；不使用 GUI 模拟 WorkBuddy 操作。
+- 设备登录、语音读取、播报和长期稳定性需真实设备验证；自动化测试不得被表述为真机验收。
+- 自动化验证不得实际锁屏、改变系统音量或开启自启；这些写操作使用替身，真实音量检查只读。
+- 运行配置、应用路径、设备 ID、登录凭据及日志只保存在本机数据目录，不提交到仓库或加入分发包。默认目录由 LOCALAPPDATA 动态确定。
+- 机器目录、个人账号和会话偏好不写入公开文档；如需开发笔记，使用 Git 不跟踪的 `.git/info/local-notes.md`。
+- 凭据使用 Windows 当前用户 DPAPI；日志不得输出网络响应原文、语音全文、密码或 Token。
+- 提交前运行 `python scripts/check_public_files.py`；打包同时执行隐私规则检查。扫描不能代替截图、自由文本和第三方材料的人工审查。
+- 修改 vendored 代码时更新 THIRD_PARTY_NOTICES.md；新增公开文件时同步 scripts/source-files.txt。
+- 校验：`python -m unittest discover -s tests -v`；构建：`python scripts/build.py`。
+- 推送、Release 和仓库设置修改以维护者的明确授权为准；不要将源码同步视为二进制发布。

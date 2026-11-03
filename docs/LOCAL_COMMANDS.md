@@ -2,10 +2,10 @@
 
 ## 应用白名单
 
-在本机执行，应用本身必须已经安装：
+在本机执行，应用本身必须已经安装。将尖括号占位符替换为本机实际路径；不要原样复制占位符，也不要提交填写后的配置：
 
 ```powershell
-.\TangerineXiaoAiAssistant.exe add-app 微信 'C:\实际安装目录\WeChat.exe' --alias WeChat
+.\TangerineXiaoAiAssistant.exe add-app 微信 '<本机微信 EXE 的完整路径>' --alias WeChat
 ```
 
 也可双击 `configure-app.cmd` 交互输入，路径可从资源管理器拖入。本命令只登记、不启动。再次登记相同名称会更新该条规则，其余命令保留。随后重启运行窗口。
@@ -17,7 +17,7 @@
   "id": "wechat",
   "action": "launch_app",
   "phrases": ["打开微信", "打开WeChat"],
-  "path": "C:\\实际安装目录\\WeChat.exe",
+  "path": "<本机微信 EXE 的完整路径>",
   "reply": "已请求启动微信"
 }
 ```

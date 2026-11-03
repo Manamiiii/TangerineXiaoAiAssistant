@@ -23,6 +23,7 @@ pyproject.toml
 requirements-build.lock
 requirements-runtime.lock
 scripts/build.py
+scripts/check_public_files.py
 scripts/desktop_entry.py
 scripts/entry.py
 scripts/smoke_exe.py
@@ -53,5 +54,6 @@ tests/test_commands.py
 tests/test_desktop.py
 tests/test_local_actions.py
 tests/test_public_experience.py
+tests/test_public_files.py
 tests/test_windows.py
 tests/test_xiaomi.py

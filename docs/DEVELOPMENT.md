@@ -16,6 +16,7 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --no-deps -e .
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe scripts/check_public_files.py
 ```
 
 ## 本地运行
@@ -57,3 +58,5 @@ pystray 完整对应源码及应用重建材料随便携包提供。修改库后
 ## 准备公开更新
 
 本地源码、GitHub main 和 Releases 是不同的交付物，不能用更新 README 代替修复二进制包。发布前核对版本号、下载链接、截图标签及已知限制；上传后重新下载核对 SHA256。是否推送或发布由维护者另行决定。
+
+暂存后运行 `python scripts/check_public_files.py --staged`，检查实际要提交的内容。不要把本机目录写入 README 或 AGENTS.md；机器专属笔记保存在 `.git/info/local-notes.md`。分发清单是允许包含的文件列表，隐私检查仍会拒绝清单内的私有文件与路径。检查不覆盖 Git 历史和旧 Release，也不能替代图片与自由文本的人工审查。

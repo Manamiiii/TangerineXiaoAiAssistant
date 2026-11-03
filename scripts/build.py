@@ -11,6 +11,11 @@ import tomllib
 from urllib.request import urlopen
 import zipfile
 
+if __package__:
+    from .check_public_files import check_paths
+else:
+    from check_public_files import check_paths
+
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "TangerineXiaoAiAssistant"
 VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["project"]["version"]
@@ -59,6 +64,7 @@ def source_files(root=ROOT):
     # Do not build imported application code without accompanying source.
     if any(p not in paths for p in (root / "src").rglob("*.py")):
         raise RuntimeError("Add new application modules to scripts/source-files.txt")
+    check_paths(root, paths)
     return paths
 
 
