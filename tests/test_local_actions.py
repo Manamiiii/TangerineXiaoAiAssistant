@@ -155,7 +155,7 @@ class NativeActionTests(unittest.TestCase):
             exe.write_bytes(b"test fixture - not executable")
             with patch.object(windows.subprocess, "Popen") as spawn:
                 windows.launch_app(str(exe))
-            spawn.assert_called_once_with([str(exe.resolve())], cwd=str(exe.parent), shell=False, close_fds=True)
+            spawn.assert_called_once_with([str(exe.resolve())], cwd=str(exe.resolve().parent), shell=False, close_fds=True)
 
     @unittest.skipUnless(os.name == "nt", "Windows only")
     def test_cli_registration_and_upgrade_do_not_start_app(self):

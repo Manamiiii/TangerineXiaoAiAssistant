@@ -32,7 +32,8 @@ class SettingsTests(unittest.TestCase):
             path = Path(folder) / "sample.exe"
             path.write_bytes(b"fixture, not a program")
             result = add_app(config.DEFAULT_CONFIG, "播放器", str(path))
-            self.assertEqual(result["commands"][-1]["path"], str(path))
+            # Windows temporary directories may use an 8.3 alias on CI.
+            self.assertEqual(result["commands"][-1]["path"], str(path.resolve()))
             spawn.assert_not_called()
             for bad in [str(Path(folder) / "missing.exe"), str(Path(folder) / "cmd.exe")]:
                 with self.assertRaises(config.ConfigError):
