@@ -129,8 +129,11 @@ def check_installer(package):
         assert desktop_link.is_file() and menu_link.is_file()
         from comtypes.client import CreateObject
         shell = CreateObject('WScript.Shell', dynamic=True)
-        assert Path(shell.CreateShortcut(str(menu_link)).TargetPath) == installed / 'TangerineXiaoAiAssistant-Desktop.exe'
-        assert Path(shell.CreateShortcut(str(desktop_link)).TargetPath) == installed / 'TangerineXiaoAiAssistant-Desktop.exe'
+        expected_target = installed / 'TangerineXiaoAiAssistant-Desktop.exe'
+        for link in (menu_link, desktop_link):
+            # Shell links can expose an 8.3 alias; compare the actual file identity.
+            target = Path(shell.CreateShortcut(str(link)).TargetPath)
+            assert target.is_file() and target.samefile(expected_target), 'Shortcut target mismatch'
         passed('per-user install creates expected HKCU uninstall entry and shortcuts')
 
         cli('init')
