@@ -14,6 +14,7 @@ from . import __version__, config
 from .bridge import Bridge
 from .commands import CommandRouter
 from .runtime import configure_logging, single_instance
+from .lifecycle import lifecycle_guard
 from .secure import SecretStore, SecretStoreError
 from .vendor.voxnode.account import SID_MINA, XiaomiAuthError
 from .vendor.voxnode.mina import MiNA, MiNAProtocolError
@@ -31,6 +32,7 @@ def parser() -> argparse.ArgumentParser:
     desktop = sub.add_parser("desktop", help="打开设置窗口与 Windows 托盘")
     desktop.add_argument("--hidden", action="store_true", help="收起到托盘并使用已保存设置开始监听")
     desktop.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
+    desktop.add_argument("--fixture-session", action="store_true", help=argparse.SUPPRESS)
     sub.add_parser("init", help="生成默认配置，不覆盖现有文件")
     sub.add_parser("enable-local-commands", help="向旧配置补入音量和锁屏规则，保留设备与自定义命令")
     app = sub.add_parser("add-app", help="登记应用 EXE 白名单，不会启动应用")
@@ -116,7 +118,7 @@ def qr_login(account: SecureAccount, directory: Path) -> None:
 def perform(args, directory: Path, config_path: Path) -> int:
     if args.command == "desktop":
         from .desktop import run
-        return run(directory, config_path, hidden=args.hidden, smoke=args.smoke_test)
+        return run(directory, config_path, hidden=args.hidden, smoke=args.smoke_test, fixture=args.fixture_session)
     if args.command == "init":
         if config_path.exists():
             config.load(config_path)
@@ -224,7 +226,8 @@ def main(argv=None) -> int:
     try:
         directory = (args.data_dir or config.data_directory()).resolve()
         config_path = (args.config or directory / "config.json").resolve()
-        with single_instance(directory):
+        guard_directory = config.data_directory() if getattr(sys, "frozen", False) else directory
+        with lifecycle_guard(guard_directory), single_instance(directory):
             return perform(args, directory, config_path)
     except KeyboardInterrupt:
         print("\n已停止。")

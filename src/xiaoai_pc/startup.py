@@ -4,9 +4,10 @@ import subprocess
 import sys
 import winreg
 from .config import data_directory
+from .identity import IDENTITY
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-VALUE_NAME = "TangerineXiaoAiAssistant"
+VALUE_NAME = IDENTITY["startup_value"]
 
 
 def command_line(directory: Path, config_path: Path) -> str:

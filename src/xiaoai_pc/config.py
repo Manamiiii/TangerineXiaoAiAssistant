@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .windows_actions import validate_app_path
+from .identity import IDENTITY
 
 LOCAL_COMMANDS = [
     {"id": "set_volume", "action": "set_volume",
@@ -43,7 +44,7 @@ def data_directory() -> Path:
     base = os.environ.get("LOCALAPPDATA")
     if not base:
         raise ConfigError("需要 Windows LOCALAPPDATA 目录。")
-    return Path(base) / "TangerineXiaoAiAssistant"
+    return Path(base) / IDENTITY["data_folder"]
 
 
 def normalize(text: str) -> str:

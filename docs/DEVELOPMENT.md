@@ -4,7 +4,7 @@
 
 ## 版本与环境
 
-本文对应 main 分支的 `0.3.1.dev0` 开发版源码。Releases 目前仍提供 0.3.0 便携测试包；开发版尚无 Release 包。以下步骤以**含有本文档的工作树**为准，旧版本请按对应版本 README 操作。
+本文对应 main 分支的 `0.4.0` 安装版源码。Releases 目前仍提供 0.3.0 便携测试包；0.4.0 尚无 Release 包。以下步骤以**含有本文档的工作树**为准，旧版本请按对应版本 README 操作。
 
 开发需要 Windows、Python 3.11+（包含 Tcl/Tk）；目前使用 Python 3.12 x64 构建和验证。依赖由两个 requirements lock 文件固定。构建需要联网安装依赖并下载、核验 pystray 对应源码，不需要管理员权限。
 
@@ -35,6 +35,8 @@ py -3.12 -m venv .venv
 测试不会代替真实账号和设备验收，也不应为开发机启用自启或实际锁屏。音量测试使用替身；可选成品音量检查只读。已有验证范围见 [VALIDATION.md](VALIDATION.md)。
 
 ## 构建便携包
+
+需要 Setup 时使用 `python scripts/build.py --installer`，安装器的独立身份、数据保留和生命周期测试见 [Windows 安装版](INSTALLER.md)。默认不加该参数时继续只构建便携包。
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/build.py

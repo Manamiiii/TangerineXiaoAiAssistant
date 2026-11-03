@@ -22,6 +22,7 @@ def main():
     env.pop("PYTHONHOME", None)
     env["PATH"] = str(Path(os.environ["SystemRoot"]) / "System32")
     with tempfile.TemporaryDirectory(prefix="xiaoai-exe-smoke-") as folder:
+        env["LOCALAPPDATA"] = str(Path(folder) / "local-data")
         command = [str(executable), "--data-dir", folder]
         def run(*args, expected=0):
             result = subprocess.run(command + list(args), env=env, cwd=folder,

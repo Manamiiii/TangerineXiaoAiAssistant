@@ -16,6 +16,7 @@ from . import __version__, config, desktop_services as services, startup
 from .desktop_model import Jobs, add_app, add_site, selectable_devices
 from .secure import SecretStore
 from .commands import CommandRouter
+from .identity import IDENTITY
 from .runtime import configure_logging
 
 STATES = {"starting": "正在连接音箱…", "listening": "正在监听，可以说指令", "reconnecting": "连接中断，正在自动重连…",
@@ -55,7 +56,7 @@ class Desktop:
         self.qr_photo = None
         self.tray_status = "未开始监听"
         self.buttons = []
-        root.title(f"橘子小爱电脑助手 {__version__}")
+        root.title(f"{IDENTITY['display_name']} {__version__}")
         root.geometry("820x660")
         root.minsize(740, 600)
         root.option_add("*Font", ("Microsoft YaHei UI", 10))
@@ -501,11 +502,26 @@ class Desktop:
             self.exit()
 
 
-def run(directory, config_path, *, hidden=False, smoke=False):
+def run(directory, config_path, *, hidden=False, smoke=False, fixture=False):
+    if fixture and not IDENTITY["fixture"]:
+        raise RuntimeError("安装测试会话只允许独立测试身份运行。")
+    import ctypes
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(IDENTITY["app_id"])
     if not config_path.exists():
         config.save(config_path, deepcopy(config.DEFAULT_CONFIG))
     root = tk.Tk()
     app = Desktop(root, directory, config_path, hidden=hidden, smoke=smoke)
+    if fixture:
+        import time
+        deadline = time.monotonic() + 120
+        def fixture_tick():
+            if (directory / ".fixture-stop").exists() or time.monotonic() > deadline:
+                app.exit()  # Cooperative normal shutdown; never terminate a process.
+                return
+            if app.tray_ready.is_set():
+                (directory / ".fixture-ready").write_text("ready", encoding="ascii")
+            root.after(100, fixture_tick)
+        root.after(100, fixture_tick)
     root.report_callback_exception = lambda *_: app.set_status("操作未完成，请检查设置后重试")
     root.mainloop()
     return (0 if app.smoke_ok else 2) if smoke else 0

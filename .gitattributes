@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.cmd text eol=crlf
+# Preserve the verified upstream license byte-for-byte, including whitespace.
+licenses/NSIS-COPYING.txt -text -whitespace

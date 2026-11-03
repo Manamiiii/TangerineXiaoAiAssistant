@@ -37,7 +37,7 @@
 | 版本 | 状态 | 获取方式 |
 |---|---|---|
 | **0.3.0** | 已发布的 Windows x64 便携测试版 | [打开 Releases 下载页](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases/tag/v0.3.0) |
-| **0.3.1.dev0** | main 分支开发版 | 可从源码运行，暂无公开安装包；上面的截图来自此版本 |
+| **0.4.0** | main 分支安装版源码 | 可构建 Windows x64 Setup 和 Portable；尚未发布下载包，[安装与构建说明](docs/INSTALLER.md) |
 
 **旧包 0.3.0 尚未包含开发版的图像依赖安全更新和配置保存防护，建议等待修复版后再尝试。** [查看更新背景与安全边界](docs/PRIVACY.md#分发与依赖)。
 
@@ -48,6 +48,8 @@
 - 测试包未签名。下载页附有 `SHA256SUMS.txt` 可核对文件一致性，不要关闭 Windows 防护或忽略检测结果。
 
 ## 快速开始
+
+当前 Releases 的 0.3.0 仍按下列便携版步骤使用。0.4.0 Setup 安装后可从开始菜单或桌面“安装版”快捷方式启动，升级/卸载默认保留本机数据，详见 [安装版说明](docs/INSTALLER.md)。
 
 准备好 **Windows 10/11 x64 电脑、小爱音箱、绑定音箱的小米账号和米家 App**。电脑与音箱需要联网；电脑需已开机、登录桌面并保持助手运行。不需要管理员权限。目前只在 Windows 11 上验证过本地程序。
 
@@ -79,7 +81,7 @@
 
 项目名为 `TangerineXiaoAiAssistant`，使用 Python，窄范围复用 [VoxNode](https://github.com/Almmor/VoxNode) 的小米通信代码，保留上游许可与修改记录。
 
-[源码运行与构建](docs/DEVELOPMENT.md) · [复用研究与架构](docs/RESEARCH.md) · [WorkBuddy 接入进度](docs/WORKBUDDY.md)
+[源码运行与构建](docs/DEVELOPMENT.md) · [Windows 安装版](docs/INSTALLER.md) · [复用研究与架构](docs/RESEARCH.md) · [WorkBuddy 接入进度](docs/WORKBUDDY.md)
 
 ## License
 

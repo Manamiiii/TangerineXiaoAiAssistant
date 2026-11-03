@@ -55,11 +55,19 @@ licensing terms if adding PyQt in the future.
 | Tcl/Tk | BSD-style terms in the Python license and Tk license.terms | Settings window |
 | Python | PSF License and included third-party notices | Embedded runtime in exe |
 | PyInstaller | GPL-2.0-or-later with distribution exception | Build tool and bootloader |
+| NSIS 3.12 | zlib/libpng for compiler, installer stub, System plug-in and zlib compressor | Per-user Windows installer; project-local build tool only |
 
 The build script copies actual installed license texts, the Python license, and
 PyInstaller copyright/exception notices into the portable distribution under
 `licenses/runtime/`; these are also included as exe resources. No certificate
 verification is disabled or CA bundle modified.
+
+NSIS copyright and complete upstream notices are retained in
+[licenses/NSIS-COPYING.txt](licenses/NSIS-COPYING.txt). The installer explicitly
+uses the zlib compressor, not NSIS's optional bzip2/LZMA compressors. NSIS is
+downloaded from its official release URL with a pinned SHA256 in
+`installer/windows/toolchain.json`; it is not installed globally or required on
+end-user systems. Its build recipe is included in the accompanying application source.
 
 The dependency versions tested are recorded in requirements-runtime.lock and
 requirements-build.lock. Public binary release should retain this notice and the

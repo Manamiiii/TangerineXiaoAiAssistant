@@ -1,6 +1,7 @@
 # Reviewed distribution files. Add new application modules and public docs explicitly.
 .gitattributes
 .github/ISSUE_TEMPLATE/bug_report.md
+.github/workflows/windows.yml
 .gitignore
 README.md
 LICENSE
@@ -9,6 +10,7 @@ config.example.json
 docs/DESKTOP.md
 docs/DEVELOPMENT.md
 docs/GITHUB_HOME.md
+docs/INSTALLER.md
 docs/LOCAL_COMMANDS.md
 docs/PRIVACY.md
 docs/PUBLIC_REVIEW.md
@@ -18,18 +20,24 @@ docs/VALIDATION.md
 docs/WORKBUDDY.md
 docs/images/commands-preview.jpg
 licenses/VoxNode-MIT.txt
+licenses/NSIS-COPYING.txt
 licenses/VoxNode-UPSTREAM-NOTICES.md
 pyproject.toml
 requirements-build.lock
 requirements-runtime.lock
 scripts/build.py
+scripts/build_installer.py
 scripts/check_public_files.py
 scripts/desktop_entry.py
 scripts/entry.py
 scripts/smoke_exe.py
+scripts/test_installer_lifecycle.py
+scripts/verify_package.py
 scripts/source-files.txt
 src/xiaoai_pc/__init__.py
 src/xiaoai_pc/__main__.py
+src/xiaoai_pc/identity.py
+src/xiaoai_pc/lifecycle.py
 src/xiaoai_pc/bridge.py
 src/xiaoai_pc/cli.py
 src/xiaoai_pc/commands.py
@@ -55,5 +63,8 @@ tests/test_desktop.py
 tests/test_local_actions.py
 tests/test_public_experience.py
 tests/test_public_files.py
+tests/test_installer.py
+installer/windows/setup.nsi
+installer/windows/toolchain.json
 tests/test_windows.py
 tests/test_xiaomi.py

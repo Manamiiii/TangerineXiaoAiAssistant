@@ -2,6 +2,8 @@
 from importlib import metadata
 import argparse
 import hashlib
+import json
+import platform
 from pathlib import Path
 import shutil
 import subprocess
@@ -10,6 +12,7 @@ import tempfile
 import tomllib
 from urllib.request import urlopen
 import zipfile
+from xiaoai_pc.identity import PRODUCTION, fixture_identity
 
 if __package__:
     from .check_public_files import check_paths
@@ -112,13 +115,16 @@ def collect_licenses(runtime_licenses):
     shutil.copy2(tk_license, runtime_licenses / "Tk-license.terms")
 
 
-def build(output, custom_library=None):
+def build(output, custom_library=None, *, fixture_id=None, installer=False):
     source_files()  # Validate before invoking the compiler.
     output = output.resolve()
+    identity = fixture_identity(fixture_id) if fixture_id else dict(PRODUCTION)
     portable = output / NAME
-    package = output / f"{NAME}-{VERSION}-windows-x64.zip"
+    package = output / f"{identity['directory_name']}-{VERSION}-windows-x64.zip"
     if portable.exists() or package.exists() or (output / "SHA256SUMS.txt").exists():
         raise RuntimeError("Output already exists; use a new --output-dir. Existing files were not changed.")
+    if platform.system() != "Windows" or platform.machine().lower() not in ("amd64", "x86_64"):
+        raise RuntimeError("This build currently supports Windows x64 only")
     scratch = (ROOT / "build").resolve()
     scratch.mkdir(parents=True, exist_ok=True)
     # Fresh per-build staging prevents old configs/logs/credentials entering a zip.
@@ -128,6 +134,15 @@ def build(output, custom_library=None):
             raise RuntimeError("Build staging escaped workspace")
         staged_portable = stage / NAME
         staged_portable.mkdir()
+        from PIL import Image, ImageDraw
+        icon = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(icon)
+        draw.ellipse((9, 15, 55, 59), fill="#f18430")
+        draw.ellipse((29, 3, 48, 18), fill="#4f8d48")
+        draw.line((21, 36, 27, 36, 30, 27, 35, 45, 39, 35, 45, 35), fill="white", width=4)
+        icon.save(staged_portable / "app.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+        identity_path = stage / "app-identity.json"
+        identity_path.write_text(json.dumps(identity, ensure_ascii=False), encoding="utf-8")
         copy_public_files(staged_portable)
         runtime_licenses = staged_portable / "licenses/runtime"
         runtime_licenses.mkdir(parents=True)
@@ -135,15 +150,28 @@ def build(output, custom_library=None):
         source_archives(staged_portable / "source", custom_library)
         for executable, entry, mode in ((NAME, "entry.py", "--console"),
                                         (NAME + "-Desktop", "desktop_entry.py", "--windowed")):
+            version_file = stage / (executable + "-version.txt")
+            numbers = tuple(int(n) for n in VERSION.split('.')) + (0,)
+            strings = {"ProductName": identity["display_name"], "FileDescription": identity["display_name"],
+                       "FileVersion": VERSION, "ProductVersion": VERSION,
+                       "OriginalFilename": executable + ".exe", "LegalCopyright": "TangerineXiaoAiAssistant contributors"}
+            version_file.write_text(
+                f"VSVersionInfo(ffi=FixedFileInfo(filevers={numbers!r}, prodvers={numbers!r}, mask=0x3f, flags=0, OS=0x40004, fileType=1, subtype=0, date=(0,0)), "
+                "kids=[StringFileInfo([StringTable('080404b0', [" +
+                ','.join(f"StringStruct({k!r}, {v!r})" for k, v in strings.items()) +
+                "])]), VarFileInfo([VarStruct('Translation', [2052,1200])])])", encoding="utf-8")
             subprocess.run([
                 sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", mode,
                 "--name", executable, "--specpath", str(scratch),
                 "--distpath", str(stage / "executables"),
                 "--exclude-module", "setuptools", "--exclude-module", "pkg_resources",
                 "--hidden-import", "pystray._win32",
+                "--icon", str(staged_portable / "app.ico"),
+                "--version-file", str(version_file),
                 "--paths", str(ROOT / "src"),
                 "--add-data", f"{staged_portable / 'licenses'}:licenses",
                 "--add-data", f"{ROOT / 'LICENSE'}:.",
+                "--add-data", f"{identity_path}:.",
                 "--add-data", f"{ROOT / 'THIRD_PARTY_NOTICES.md'}:.",
                 str(ROOT / "scripts" / entry),
             ], cwd=ROOT, check=True)
@@ -153,6 +181,12 @@ def build(output, custom_library=None):
             content = (f'@echo off\nchcp 65001 >nul\n"%~dp0{NAME}.exe" init\n'
                        f'if errorlevel 1 goto done\n"%~dp0{NAME}.exe" {command}\n:done\npause\n')
             (staged_portable / f"{name}.cmd").write_text(content, encoding="utf-8", newline="\r\n")
+        public_sources = {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in source_files()}
+        info = {"version": VERSION, "platform": "windows-x64", "identity": identity,
+                "sources": public_sources,
+                "files": {p.relative_to(staged_portable).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                          for p in staged_portable.rglob('*') if p.is_file()}}
+        (staged_portable / "build-info.json").write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
         shutil.make_archive(str(stage / "portable"), "zip", stage, NAME)
         output.mkdir(parents=True, exist_ok=True)
         shutil.copytree(staged_portable, portable)  # Never merge with user files.
@@ -161,6 +195,13 @@ def build(output, custom_library=None):
             f"{hashlib.sha256(package.read_bytes()).hexdigest()}  {package.name}\n", encoding="utf-8")
     print(f"Portable build: {portable}")
     print("Local build only; nothing has been uploaded or published.")
+    if installer:
+        if __package__:
+            from .build_installer import build_installer
+        else:
+            from build_installer import build_installer
+        build_installer(portable)
+    return portable
 
 
 def main():
@@ -168,8 +209,10 @@ def main():
     parser.add_argument("--pystray-source", type=Path, help="matching modified pystray source zip, for rebuilding/relinking")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "dist" / VERSION,
                         help="unused output directory; existing packages are never overwritten")
+    parser.add_argument("--installer", action="store_true", help="also build per-user Windows Setup")
+    parser.add_argument("--fixture-id", help="UUID for isolated installer test identity; never publish fixture builds")
     args = parser.parse_args()
-    build(args.output_dir, args.pystray_source)
+    build(args.output_dir, args.pystray_source, fixture_id=args.fixture_id, installer=args.installer)
 
 
 if __name__ == "__main__":
