@@ -29,6 +29,16 @@ def special_folder(number):
     return Path(buffer.value)
 
 
+def shortcut_target(path):
+    # Load the existing Unicode shell link read-only; do not use WSH's create API.
+    from comtypes.client import CreateObject
+    from comtypes.persist import IPersistFile, STGM_READ
+    from comtypes.shelllink import ShellLink, IShellLinkW
+    shortcut = CreateObject(ShellLink, interface=IShellLinkW)
+    shortcut.QueryInterface(IPersistFile).Load(str(path), STGM_READ)
+    return Path(shortcut.GetPath(0))
+
+
 def check_installer(package):
     package = package.resolve()
     info, identity = verified_payload(package)
@@ -127,13 +137,11 @@ def check_installer(package):
         invoke([str(low), '/S'])
         assert installed_version() == '0.0.1'
         assert desktop_link.is_file() and menu_link.is_file()
-        from comtypes.client import CreateObject
-        shell = CreateObject('WScript.Shell', dynamic=True)
         expected_target = installed / 'TangerineXiaoAiAssistant-Desktop.exe'
         for link in (menu_link, desktop_link):
             # Shell links can expose an 8.3 alias; compare the actual file identity.
-            target = Path(shell.CreateShortcut(str(link)).TargetPath)
-            assert target.is_file() and target.samefile(expected_target), 'Shortcut target mismatch'
+            target = shortcut_target(link)
+            assert target.is_file() and target.samefile(expected_target), f'Shortcut target mismatch: {link.name}, target exists={target.is_file()}'
         passed('per-user install creates expected HKCU uninstall entry and shortcuts')
 
         cli('init')

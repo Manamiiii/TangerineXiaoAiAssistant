@@ -16,6 +16,28 @@ from scripts.build_installer import quote, verified_payload
 
 
 class InstallerTests(unittest.TestCase):
+    def test_unicode_shortcut_inspection_is_read_only(self):
+        from comtypes import COMError
+        from comtypes.client import CreateObject
+        from comtypes.persist import IPersistFile
+        from comtypes.shelllink import ShellLink, IShellLinkW
+        from scripts.test_installer_lifecycle import shortcut_target
+        with TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            target = root / 'App.exe'
+            target.write_bytes(b'fixture, never executed')
+            link = root / '快捷方式（安装版）.lnk'
+            shortcut = CreateObject(ShellLink, interface=IShellLinkW)
+            shortcut.SetPath(str(target))
+            shortcut.QueryInterface(IPersistFile).Save(str(link), True)
+            before = link.read_bytes()
+            self.assertTrue(shortcut_target(link).samefile(target))
+            self.assertEqual(link.read_bytes(), before)
+            missing = root / 'missing.lnk'
+            with self.assertRaises(COMError):
+                shortcut_target(missing)
+            self.assertFalse(missing.exists())
+
     def test_fixture_separates_every_persistent_identity(self):
         a, b = fixture_identity(str(uuid.uuid4())), fixture_identity(str(uuid.uuid4()))
         for key in ('app_id', 'guid', 'directory_name', 'data_folder', 'startup_value', 'display_name'):
