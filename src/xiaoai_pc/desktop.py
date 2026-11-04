@@ -9,7 +9,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageTk
 import pystray
 
 from . import __version__, config, desktop_services as services, startup
@@ -17,19 +17,11 @@ from .desktop_model import Jobs, add_app, add_site, selectable_devices
 from .secure import SecretStore
 from .commands import CommandRouter
 from .identity import IDENTITY
+from .icon import app_image as tray_image
 from .runtime import configure_logging
 
 STATES = {"starting": "正在连接音箱…", "listening": "正在监听，可以说指令", "reconnecting": "连接中断，正在自动重连…",
           "auth_required": "登录已失效，请重新扫码", "device_error": "请核对音箱选择或检查设备接口", "stopped": "已停止监听"}
-
-
-def tray_image():
-    image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    draw.ellipse((9, 15, 55, 59), fill="#f18430")
-    draw.ellipse((29, 3, 48, 18), fill="#4f8d48")
-    draw.line((21, 36, 27, 36, 30, 27, 35, 45, 39, 35, 45, 35), fill="white", width=4)
-    return image
 
 
 class QueueLog(logging.Handler):
@@ -57,6 +49,8 @@ class Desktop:
         self.tray_status = "未开始监听"
         self.buttons = []
         root.title(f"{IDENTITY['display_name']} {__version__}")
+        self.window_icon = ImageTk.PhotoImage(tray_image(64), master=root)
+        root.iconphoto(True, self.window_icon)
         root.geometry("820x660")
         root.minsize(740, 600)
         root.option_add("*Font", ("Microsoft YaHei UI", 10))

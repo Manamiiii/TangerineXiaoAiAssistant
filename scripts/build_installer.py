@@ -120,6 +120,8 @@ def build_installer(portable, *, installer_version=None):
                        "INSTALL_FILES": stage / "install-files.nsh", "UNINSTALL_FILES": stage / "uninstall-files.nsh",
                        "CHECK_PATHS": stage / "check-paths.nsh",
                        "SIZE_KB": sum(p.stat().st_size for p in files) // 1024 + 1024}
+        if identity["fixture"] and installer_version == "0.0.1":
+            definitions["LEGACY_LAYOUT_FIXTURE"] = 1
         includes = stage / "definitions.nsh"
         includes.write_text('\n'.join('!define ' + name + ' ' + quote(value) for name, value in definitions.items()) + '\n', encoding="utf-8-sig")
         subprocess.run([str(compiler), "/NOCONFIG", "/INPUTCHARSET", "UTF8", "/V2",

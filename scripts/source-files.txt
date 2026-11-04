@@ -37,6 +37,7 @@ scripts/verify_package.py
 scripts/source-files.txt
 src/xiaoai_pc/__init__.py
 src/xiaoai_pc/__main__.py
+src/xiaoai_pc/icon.py
 src/xiaoai_pc/identity.py
 src/xiaoai_pc/lifecycle.py
 src/xiaoai_pc/bridge.py

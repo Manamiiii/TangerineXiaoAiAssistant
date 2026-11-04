@@ -71,20 +71,20 @@ end-user systems. Its build recipe is included in the accompanying application s
 
 The dependency versions tested are recorded in requirements-runtime.lock and
 requirements-build.lock. Public binary release should retain this notice and the
-complete bundled license directory. Version 0.4.0 provides unsigned Windows x64
+complete bundled license directory. Version 0.4.1 provides unsigned Windows x64
 Setup and Portable candidates with the same application payload and license/source
 materials. These candidates are local-only pending acceptance; neither has been
 published as a new Release or validated with a real speaker.
 
 The project license was selected by the author on 2026-11-03 and is included
-in the source tree and 0.4.0 candidates. Read-only inspection of the public 0.3.0
+in the source tree and 0.4.1 candidates. Read-only inspection of the public 0.3.0
 ZIP confirmed third-party notices, runtime licenses and application/pystray source
 archives, but no project-level LICENSE at the package root or in its application
 source archive. Its bundled GPL/LGPL texts describe pystray; they do not replace
 the missing project-level declaration. That old asset is unchanged by this update.
 See [release material review](docs/RELEASE_REVIEW.md) for the exact asset digest
 and proposed follow-up. Existing pystray modification/relinking permissions below
-remain in effect. The 0.4.0 candidate retains the development branch's Pillow
+remain in effect. The 0.4.1 candidate retains the development branch's Pillow
 13.0.0 update and explicit distribution file list; this does not update old releases.
 
 ## pystray source and relinking

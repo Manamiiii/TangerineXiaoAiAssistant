@@ -8,6 +8,7 @@ SetCompressor zlib
 !include "WordFunc.nsh"
 !include "x64.nsh"
 !include "WinVer.nsh"
+!include "Win\COM.nsh"
 !include "${DEFINITIONS}"
 
 Name "${DISPLAY_NAME}"
@@ -18,8 +19,8 @@ VIAddVersionKey /LANG=1033 "ProductName" "${DISPLAY_NAME}"
 VIAddVersionKey /LANG=1033 "FileDescription" "Per-user Windows x64 Setup"
 VIAddVersionKey /LANG=1033 "FileVersion" "${INSTALL_VERSION}"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "TangerineXiaoAiAssistant contributors"
-Icon "${APP_ICON}"
-UninstallIcon "${APP_ICON}"
+!define MUI_ICON "${APP_ICON}"
+!define MUI_UNICON "${APP_ICON}"
 ShowInstDetails show
 ShowUninstDetails show
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_GUID}"
@@ -97,42 +98,64 @@ FunctionEnd
 !insertmacro ValidateFunctions ""
 !insertmacro ValidateFunctions "un."
 
-Function .onInit
-  SetShellVarContext current
-  SetRegView 64
-  ${IfNot} ${RunningX64}
-    MessageBox MB_ICONSTOP|MB_OK "此安装包只支持 Windows x64。" /SD IDOK
-    SetErrorLevel 13
-    Quit
-  ${EndIf}
-  ${IfNot} ${AtLeastWin10}
-    MessageBox MB_ICONSTOP|MB_OK "此安装包需要 Windows 10 或更新版本。" /SD IDOK
-    SetErrorLevel 13
-    Quit
-  ${EndIf}
-  StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${DIRECTORY_NAME}"
-  Call AcquireGuard
-  Call ValidatePaths
-  IfFileExists "$INSTDIR\install.ini" existing_identity
-  IfFileExists "$INSTDIR\*.*" unknown_directory version_check
-existing_identity:
-  ReadINIStr $0 "$INSTDIR\install.ini" "Application" "Id"
-  StrCmp $0 "${APP_GUID}" version_check unknown_directory
-unknown_directory:
-  MessageBox MB_ICONSTOP|MB_OK "安装目录存在无法识别的文件。为保护数据，本次不会覆盖。请保留现有文件并检查安装目录。" /SD IDOK
+!define OLD_DIR "$LOCALAPPDATA\Programs\${DIRECTORY_NAME}"
+!define NEW_DIR "$LOCALAPPDATA\Programs\Tangerine\${DIRECTORY_NAME}"
+Var OwnedDir
+Var RemoveDesktopLink
+
+!macro ResolveFunctions PREFIX
+Function ${PREFIX}ResolveDirectory
+  ; Only the two fixed per-user locations are eligible. Never use a free-form
+  ; registry or /D path as an installation or deletion target.
+  !insertmacro RejectReparse "$LOCALAPPDATA\Programs"
+  !insertmacro RejectReparse "$LOCALAPPDATA\Programs\Tangerine"
+  !insertmacro RejectReparse "${NEW_DIR}"
+  !insertmacro RejectReparse "${OLD_DIR}"
+  !insertmacro RejectReparse "${NEW_DIR}\install.ini"
+  !insertmacro RejectReparse "${OLD_DIR}\install.ini"
+  ReadRegStr $0 HKCU "${UNINSTALL_KEY}" "InstallLocation"
+  StrCmp $0 "${OLD_DIR}" registered
+  StrCmp $0 "${NEW_DIR}" registered
+  StrCmp $0 "" 0 unsafe_location
+  EnumRegValue $1 HKCU "${UNINSTALL_KEY}" 0
+  StrCmp $1 "" 0 unsafe_location
+  !ifdef LEGACY_LAYOUT_FIXTURE
+    StrCpy $OwnedDir "${OLD_DIR}"
+  !else
+    StrCpy $OwnedDir "${NEW_DIR}"
+  !endif
+  ; An orphan marker or nonempty destination needs an ownership review.
+  IfFileExists "$OwnedDir\*.*" unsafe_location
+  Goto check_other
+registered:
+  StrCpy $OwnedDir $0
+  ReadINIStr $1 "$OwnedDir\install.ini" "Application" "Id"
+  StrCmp $1 "${APP_GUID}" 0 unsafe_location
+check_other:
+  StrCpy $2 "${OLD_DIR}"
+  StrCmp $OwnedDir $2 0 +2
+  StrCpy $2 "${NEW_DIR}"
+  ReadINIStr $1 "$2\install.ini" "Application" "Id"
+  StrCmp $1 "${APP_GUID}" unsafe_location
+  Return
+unsafe_location:
+  MessageBox MB_ICONSTOP|MB_OK "安装登记、目录或身份标记不一致，无法确认程序归属。请保留现场检查后重试。" /SD IDOK
   SetErrorLevel 12
   Quit
-version_check:
-  ReadRegStr $0 HKCU "${UNINSTALL_KEY}" "DisplayVersion"
-  ${If} $0 != ""
-    ${VersionCompare} "$0" "${INSTALL_VERSION}" $1
-    ${If} $1 == 1
-      MessageBox MB_ICONSTOP|MB_OK "已安装更新版本，本次不允许降级。配置和程序均保持不变。" /SD IDOK
-      SetErrorLevel 11
-      Quit
+FunctionEnd
+!macroend
+
+!macro RejectReparse PATH
+  System::Call 'kernel32::GetFileAttributesW(w "${PATH}") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      Goto unsafe_location
     ${EndIf}
   ${EndIf}
-FunctionEnd
+!macroend
+!insertmacro ResolveFunctions ""
+!insertmacro ResolveFunctions "un."
 
 Function .onGUIEnd
   Call ReleaseGuard
@@ -141,10 +164,13 @@ FunctionEnd
 Section "程序（必选）" Main
   SectionIn RO
   ; Fixed owned location, never a user-supplied /D directory or a data directory.
-  StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${DIRECTORY_NAME}"
+  Call ResolveDirectory
+  StrCpy $INSTDIR $OwnedDir
   Call ValidatePaths
   CreateDirectory "$INSTDIR"
+  ClearErrors
   WriteINIStr "$INSTDIR\install.ini" "Application" "Id" "${APP_GUID}"
+  IfErrors install_failed
   ClearErrors
   SetOverwrite on
   !include "${INSTALL_FILES}"
@@ -176,15 +202,54 @@ install_failed:
 install_done:
 SectionEnd
 
-Section "桌面快捷方式" DesktopShortcut
-  ; Separate name preserves a previously created portable shortcut.
+Section /o "桌面快捷方式" DesktopShortcut
+  ; Respect any existing entry, including one customized by the user.
+  IfFileExists "$DESKTOP\${DISPLAY_NAME}（安装版）.lnk" done_desktop
   CreateShortcut "$DESKTOP\${DISPLAY_NAME}（安装版）.lnk" "$INSTDIR\TangerineXiaoAiAssistant-Desktop.exe" "" "$INSTDIR\app.ico"
+done_desktop:
 SectionEnd
+
+Function .onInit
+  SetShellVarContext current
+  SetRegView 64
+  ${IfNot} ${RunningX64}
+    MessageBox MB_ICONSTOP|MB_OK "此安装包只支持 Windows x64。" /SD IDOK
+    SetErrorLevel 13
+    Quit
+  ${EndIf}
+  ${IfNot} ${AtLeastWin10}
+    MessageBox MB_ICONSTOP|MB_OK "此安装包需要 Windows 10 或更新版本。" /SD IDOK
+    SetErrorLevel 13
+    Quit
+  ${EndIf}
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/DESKTOP" $1
+  IfErrors +2
+  SectionSetFlags ${DesktopShortcut} 1
+  Call AcquireGuard
+  Call ResolveDirectory
+  StrCpy $INSTDIR $OwnedDir
+  Call ValidatePaths
+  ReadRegStr $0 HKCU "${UNINSTALL_KEY}" "DisplayVersion"
+  ${If} $0 != ""
+    ${VersionCompare} "$0" "${INSTALL_VERSION}" $1
+    ${If} $1 == 1
+      MessageBox MB_ICONSTOP|MB_OK "已安装更新版本，本次不允许降级。配置和程序均保持不变。" /SD IDOK
+      SetErrorLevel 11
+      Quit
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
 
 Function un.onInit
   SetShellVarContext current
   SetRegView 64
-  StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${DIRECTORY_NAME}"
+  Call un.AcquireGuard
+  Call un.ResolveDirectory
+  StrCmp $INSTDIR $OwnedDir +3
+  SetErrorLevel 12
+  Quit
   Call un.ValidatePaths
   ReadINIStr $0 "$INSTDIR\install.ini" "Application" "Id"
   ${If} $0 != "${APP_GUID}"
@@ -192,15 +257,45 @@ Function un.onInit
     SetErrorLevel 12
     Quit
   ${EndIf}
-  Call un.AcquireGuard
 FunctionEnd
 
 Function un.onGUIEnd
   Call un.ReleaseGuard
 FunctionEnd
 
+Function un.CheckDesktopLink
+  StrCpy $RemoveDesktopLink 0
+  IfFileExists "$DESKTOP\${DISPLAY_NAME}（安装版）.lnk" 0 done
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
+  ${If} $0 P<> 0
+    ${IUnknown::QueryInterface} $0 '("${IID_IPersistFile}",.r1)'
+    ${If} $1 P<> 0
+      ${IPersistFile::Load} $1 '("$DESKTOP\${DISPLAY_NAME}（安装版）.lnk",0).r2'
+      ${If} $2 = 0
+        ${IShellLink::GetPath} $0 '(.r3,${NSIS_MAX_STRLEN},0,0).r2'
+        ${If} $2 = 0
+        ${AndIf} $3 == "$INSTDIR\TangerineXiaoAiAssistant-Desktop.exe"
+          ${IShellLink::GetArguments} $0 '(.r4,${NSIS_MAX_STRLEN}).r2'
+          ${If} $2 = 0
+          ${AndIf} $4 == ""
+            StrCpy $RemoveDesktopLink 1
+          ${EndIf}
+        ${EndIf}
+      ${EndIf}
+      ${IUnknown::Release} $1 ""
+    ${EndIf}
+    ${IUnknown::Release} $0 ""
+  ${EndIf}
+done:
+FunctionEnd
+
 Section "Uninstall"
+  Call un.ResolveDirectory
+  StrCmp $INSTDIR $OwnedDir +3
+  SetErrorLevel 12
+  Quit
   Call un.ValidatePaths
+  Call un.CheckDesktopLink
   ; Delete exactly the shipped files. No recursive removal, no user data deletion.
   !include "${UNINSTALL_FILES}"
   ClearErrors
@@ -212,6 +307,7 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\${DISPLAY_NAME}\${DISPLAY_NAME}.lnk"
   Delete "$SMPROGRAMS\${DISPLAY_NAME}\卸载.lnk"
   RMDir "$SMPROGRAMS\${DISPLAY_NAME}"
+  StrCmp $RemoveDesktopLink 1 0 +2
   Delete "$DESKTOP\${DISPLAY_NAME}（安装版）.lnk"
   ; Never remove another portable installation's startup entry.
   ReadRegStr $0 HKCU "${RUN_KEY}" "${STARTUP_VALUE}"

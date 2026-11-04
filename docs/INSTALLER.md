@@ -1,10 +1,10 @@
-# Windows 安装版（0.4.0）
+# Windows 安装版（0.4.1）
 
-本工具独立提供 Windows x64 Setup，同时保留 Portable。0.4.0 的源码和构建流程已加入仓库，**尚未创建 Release，也未上传公开安装包**。真实小爱音箱链路仍需设备验收。
+本工具独立提供 Windows x64 Setup，同时保留 Portable。0.4.1 的源码和构建流程已加入仓库，**尚未创建 Release，也未上传公开安装包**。真实小爱音箱链路仍需设备验收。
 
 ## 普通用户安装、升级与卸载
 
-- Setup 文件名为 `TangerineXiaoAiAssistant-0.4.0-windows-x64-Setup.exe`。按当前 Windows 用户安装，不请求管理员权限，不需要 Python 或其他运行环境。程序安装到 `%LOCALAPPDATA%\Programs\TangerineXiaoAiAssistant`，首版不开放自定义安装目录。
+- Setup 文件名为 `TangerineXiaoAiAssistant-0.4.1-windows-x64-Setup.exe`。按当前 Windows 用户安装，不请求管理员权限，不需要 Python 或其他运行环境。新装目录为 `%LOCALAPPDATA%\Programs\Tangerine\TangerineXiaoAiAssistant`。已有安装若登记在 `%LOCALAPPDATA%\Programs\TangerineXiaoAiAssistant`，且安装目录 GUID 标记匹配，则在原目录升级。两个目录都声称归属、登记异常或路径带重解析点时，向导停止。卸载仅处理本应用目录，保留共享父目录与用户数据。
 - 安装后从开始菜单打开；桌面快捷方式是可选组件，名称带“安装版”，避免覆盖已有便携版快捷方式。安装器不会自动启动应用、扫码、开启自启或监听。
 - 手动更新：正常退出助手（关闭窗口只是收起到托盘），下载并核对新 Setup 的 SHA256，确认后运行。程序在运行、存在另一个安装向导或卸载向导时，安装器拒绝继续，不强杀进程。拒绝降级。
 - 卸载：在 Windows“已安装的应用”找到本工具，或使用开始菜单中的卸载入口。正常退出助手后继续；**默认保留配置、备份、日志和加密登录信息**。只删除安装器明确列出的程序文件，未知文件或旧版遗留文件可能保留。没有递归删除整个安装目录或数据目录的操作。
@@ -32,11 +32,11 @@
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/build.py --installer
-.\.venv\Scripts\python.exe scripts/verify_package.py --package-dir dist/0.4.0/TangerineXiaoAiAssistant
-.\.venv\Scripts\python.exe scripts/smoke_exe.py --package-dir dist/0.4.0/TangerineXiaoAiAssistant
+.\.venv\Scripts\python.exe scripts/verify_package.py --package-dir dist/0.4.1/TangerineXiaoAiAssistant
+.\.venv\Scripts\python.exe scripts/smoke_exe.py --package-dir dist/0.4.1/TangerineXiaoAiAssistant
 ```
 
-输出到 `dist/0.4.0/`：Setup、便携 ZIP、完整便携目录和 `SHA256SUMS.txt`。已存在的输出不覆盖；重建使用 `--output-dir 新目录` 并让验证命令指向同一目录。构建脚本只在本地生成文件，不创建 Release 或上传文件。
+输出到 `dist/0.4.1/`：Setup、便携 ZIP、完整便携目录和 `SHA256SUMS.txt`。已存在的输出不覆盖；重建使用 `--output-dir 新目录` 并让验证命令指向同一目录。构建脚本只在本地生成文件，不创建 Release 或上传文件。
 
 NSIS 3.12 编译器从官方发布地址下载到项目内 `build/tools/`，由 `installer/windows/toolchain.json` 固定 URL 和 SHA256，每次使用前重新校验，并在独立临时目录解压。不安装全局工具、不修改 PATH、不要求管理员权限。编译器未安装到普通用户电脑；运行时只需要生成的 EXE。
 
@@ -71,6 +71,6 @@ Fixture 的 GUID、应用 ID、窗口名称、安装目录、数据目录、自�
 
 真实设备最小验收仍为**未验证**：扫码确认 → 选择音箱并保存 → 开始监听 → 只说一次“让电脑打开 B 站” → 确认网页打开一次，等待 10 秒无重复后停止监听。不测试真实锁屏、音量或自启；详细预期与失败记录见 [README 快速开始](../README.md#快速开始)。单次通过不代表播报或长期稳定性通过。
 
-0.3.0 历史便携包与 0.4.0 候选的许可材料核对，以及旧资产的待审批补充方案见 [发布材料核对](RELEASE_REVIEW.md)。安装包继续只保留本地，待维护者验收后再另行上传。
+0.3.0 历史便携包与 0.4.1 候选的许可材料核对，以及旧资产的待审批补充方案见 [发布材料核对](RELEASE_REVIEW.md)。安装包继续只保留本地，待维护者验收后再另行上传。
 
 可选验收：不同 DPI、手动开启自启后注销重登、断网与休眠恢复。自动测试不执行真实锁屏、改音量或开启本机自启。

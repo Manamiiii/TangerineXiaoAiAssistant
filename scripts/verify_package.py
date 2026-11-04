@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import struct
 import types
 import zipfile
 
@@ -23,6 +24,29 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def verify_icon_resources(pe, icon_path):
+    """Compare the primary RT_GROUP_ICON and its actual RT_ICON payloads."""
+    ico = icon_path.read_bytes()
+    frames = {}
+    for offset in range(6, 6 + 16 * struct.unpack_from('<H', ico, 4)[0], 16):
+        size, start = struct.unpack_from('<II', ico, offset + 8)
+        frames[ico[offset] or 256] = ico[start:start + size]
+    assert set(frames) == {16, 24, 32, 48, 64, 128, 256}
+
+    def resource_bytes(entry):
+        data = entry.directory.entries[0].data.struct
+        return pe.get_data(data.OffsetToData, data.Size)
+
+    resources = {entry.id: entry for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries}
+    icons = {entry.id: resource_bytes(entry) for entry in resources[3].directory.entries}
+    group = resource_bytes(resources[14].directory.entries[0])
+    actual = {}
+    for offset in range(6, 6 + 14 * struct.unpack_from('<H', group, 4)[0], 14):
+        identifier = struct.unpack_from('<H', group, offset + 12)[0]
+        actual[group[offset] or 256] = icons[identifier]
+    assert actual == frames, 'Primary executable icons differ from packaged app.ico'
+
+
 def verify(package):
     package = package.resolve()
     info, identity = verified_payload(package)
@@ -40,6 +64,7 @@ def verify(package):
     setup = package.parent / f"{identity['directory_name']}-{info['version']}-windows-x64-Setup.exe"
     for binary in binaries + [setup]:
         pe = pefile.PE(str(binary))
+        verify_icon_resources(pe, package / 'app.ico')
         if binary != setup:
             assert pe.FILE_HEADER.Machine == 0x8664, 'Runtime executable must be x64'
         assert pe.OPTIONAL_HEADER.DATA_DIRECTORY[4].Size == 0, 'Review signature handling if signing is introduced'

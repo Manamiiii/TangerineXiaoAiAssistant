@@ -29,14 +29,25 @@ def special_folder(number):
     return Path(buffer.value)
 
 
-def shortcut_target(path):
+def load_shortcut(path):
     # Load the existing Unicode shell link read-only; do not use WSH's create API.
     from comtypes.client import CreateObject
     from comtypes.persist import IPersistFile, STGM_READ
     from comtypes.shelllink import ShellLink, IShellLinkW
     shortcut = CreateObject(ShellLink, interface=IShellLinkW)
     shortcut.QueryInterface(IPersistFile).Load(str(path), STGM_READ)
-    return Path(shortcut.GetPath(0))
+    return shortcut
+
+
+def shortcut_target(path):
+    return Path(load_shortcut(path).GetPath(0))
+
+
+def check_app_shortcut(link, installed):
+    shortcut = load_shortcut(link)
+    assert Path(shortcut.GetPath(0)).samefile(installed / 'TangerineXiaoAiAssistant-Desktop.exe')
+    path, index = shortcut.GetIconLocation()
+    assert index == 0 and Path(path).samefile(installed / 'app.ico')
 
 
 def check_installer(package):
@@ -46,12 +57,14 @@ def check_installer(package):
         raise RuntimeError("Refusing installer lifecycle tests on the production identity")
     local = Path(os.environ['LOCALAPPDATA']).resolve()
     data = local / identity['data_folder']
-    installed = local / 'Programs' / identity['directory_name']
+    legacy = local / 'Programs' / identity['directory_name']
+    current = local / 'Programs' / 'Tangerine' / identity['directory_name']
+    installed = current
     key = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\' + identity['guid']
     desktop_link = special_folder(0x10) / (identity['display_name'] + '（安装版）.lnk')
     menu = special_folder(2) / identity['display_name']
     menu_link = menu / (identity['display_name'] + '.lnk')
-    if data.exists() or installed.exists() or desktop_link.exists() or menu.exists():
+    if data.exists() or legacy.exists() or current.exists() or desktop_link.exists() or menu.exists():
         raise RuntimeError("Fixture paths already exist; preserve them and build a new fixture UUID")
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY):
@@ -134,14 +147,29 @@ def check_installer(package):
             invoke([str(low), '/S'], 10)
         passed('legacy portable data lock rejects installation')
 
-        invoke([str(low), '/S'])
+        installed = legacy
+        invoke([str(low), '/S', '/DESKTOP'])
+        assert not current.exists()
         assert installed_version() == '0.0.1'
+        current.mkdir()
+        marker = current / 'install.ini'
+        marker.write_text('[Application]\nId=' + identity['guid'] + '\n', encoding='utf-8')
+        invoke([str(high), '/S'], 12)
+        assert installed_version() == '0.0.1' and marker.is_file()
+        marker.unlink()
+        current.rmdir()
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_SET_VALUE | winreg.KEY_WOW64_64KEY) as h:
+            winreg.SetValueEx(h, 'InstallLocation', 0, winreg.REG_SZ, str(data))
+            try:
+                invoke([str(high), '/S'], 12)
+                uninstall(expected=12)
+            finally:
+                winreg.SetValueEx(h, 'InstallLocation', 0, winreg.REG_SZ, str(legacy))
+        assert installed_version() == '0.0.1'
+        passed('ambiguous markers and invalid registered locations refuse maintenance')
         assert desktop_link.is_file() and menu_link.is_file()
-        expected_target = installed / 'TangerineXiaoAiAssistant-Desktop.exe'
         for link in (menu_link, desktop_link):
-            # Shell links can expose an 8.3 alias; compare the actual file identity.
-            target = shortcut_target(link)
-            assert target.is_file() and target.samefile(expected_target), f'Shortcut target mismatch: {link.name}, target exists={target.is_file()}'
+            check_app_shortcut(link, installed)
         passed('per-user install creates expected HKCU uninstall entry and shortcuts')
 
         cli('init')
@@ -180,7 +208,8 @@ def check_installer(package):
 
         invoke([str(high), '/S'])
         assert installed_version() == info['version'] and snapshot() == saved
-        passed('lower-version installer fixture upgrades while retaining config, backup and encrypted fixture data')
+        assert not current.exists()
+        passed('legacy location upgrades in place; lower-version installer fixture upgrades while retaining config, backup and encrypted fixture data')
         invoke([str(low), '/S'], 11)
         assert installed_version() == info['version'] and snapshot() == saved
         passed('downgrade refused without changing program version or data')
@@ -205,14 +234,35 @@ def check_installer(package):
         passed('uninstall removes owned files/shortcuts/registration but retains all data and unknown files')
         unknown.unlink()
         installed.rmdir()
+        installed = current
+        sibling = current.parent / (identity['directory_name'] + '-sibling.txt')
+        with sibling.open('x', encoding='ascii') as stream:
+            stream.write('keep')
         invoke([str(high), '/S'])
+        assert installed_version() == info['version'] and not legacy.exists()
+        assert not desktop_link.exists()
+        check_app_shortcut(menu_link, current)
         cli('init')
         assert snapshot() == saved
         assert SecretStore(data / 'xiaomi.dpapi').load() == {'fixture': 'not-a-real-login'}
         invoke([str(installed / 'TangerineXiaoAiAssistant-Desktop.exe'), 'desktop', '--smoke-test'])
         passed('reinstall and real window reopen recover retained config and encrypted fixture data')
+        from comtypes.persist import IPersistFile
+        custom = load_shortcut(menu_link)
+        custom.SetArguments('desktop --hidden')
+        custom.QueryInterface(IPersistFile).Save(str(desktop_link), True)
+        custom = None
+        original_link = desktop_link.read_bytes()
+        invoke([str(high), '/S', '/DESKTOP'])
+        assert desktop_link.read_bytes() == original_link
         uninstall()
-        assert not installed.exists() and not desktop_link.exists() and not menu.exists()
+        assert not installed.exists() and not menu.exists()
+        assert desktop_link.read_bytes() == original_link
+        desktop_link.unlink()  # Only the test-owned synthetic shortcut.
+        passed('same-name customized shortcut survives maintenance with its arguments intact')
+        assert sibling.read_text('ascii') == 'keep'
+        sibling.unlink()
+        passed('fresh grouped install and uninstall preserve the shared parent and sibling')
         # Only the UUID-specific fixture data created by this test may be removed.
         # Packaged desktop hosts can virtualize a new child beneath LOCALAPPDATA.
         # Still require the resolved target to stay inside that root and own UUID.

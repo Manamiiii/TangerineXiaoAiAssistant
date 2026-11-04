@@ -134,13 +134,9 @@ def build(output, custom_library=None, *, fixture_id=None, installer=False):
             raise RuntimeError("Build staging escaped workspace")
         staged_portable = stage / NAME
         staged_portable.mkdir()
-        from PIL import Image, ImageDraw
-        icon = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(icon)
-        draw.ellipse((9, 15, 55, 59), fill="#f18430")
-        draw.ellipse((29, 3, 48, 18), fill="#4f8d48")
-        draw.line((21, 36, 27, 36, 30, 27, 35, 45, 39, 35, 45, 35), fill="white", width=4)
-        icon.save(staged_portable / "app.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+        from xiaoai_pc.icon import app_image
+        app_image(256).save(staged_portable / "app.ico", bitmap_format="bmp",
+                            sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)])
         identity_path = stage / "app-identity.json"
         identity_path.write_text(json.dumps(identity, ensure_ascii=False), encoding="utf-8")
         copy_public_files(staged_portable)
