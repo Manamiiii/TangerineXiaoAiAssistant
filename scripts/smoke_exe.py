@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--no-window", action="store_true", help="skip GUI when host window access is excluded")
+    parser.add_argument("--legacy-cli", type=Path, help="optional historical EXE, init only with isolated synthetic data")
     parser.add_argument("--check-audio", action="store_true", help="read-only check on a machine with an audio output")
     version = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["project"]["version"]
     parser.add_argument("--package-dir", type=Path, default=ROOT / "dist" / version / "TangerineXiaoAiAssistant")
@@ -51,18 +53,42 @@ def main():
             assert 0 <= audio["volume_percent"] <= 100 and isinstance(audio["muted"], bool)
         run("test-command", "让电脑打开B站 & calc", expected=2)
         run("run", expected=2)
-        desktop = executable.with_name("TangerineXiaoAiAssistant-Desktop.exe")
-        desktop_result = subprocess.run([str(desktop), "--data-dir", folder, "desktop", "--smoke-test"],
-                                        env=env, cwd=folder, timeout=45)
-        if desktop_result.returncode != 0:
-            raise RuntimeError("Frozen desktop / Tk / tray smoke failed")
+        if not args.no_window:
+            desktop = executable.with_name("TangerineXiaoAiAssistant-Desktop.exe")
+            desktop_result = subprocess.run([str(desktop), "--data-dir", folder, "desktop", "--smoke-test"],
+                                            env=env, cwd=folder, timeout=45)
+            if desktop_result.returncode != 0:
+                raise RuntimeError("Frozen desktop / Tk / tray smoke failed")
         # The desktop must have released its lock before another process starts.
         run("init")
         assert not (Path(folder) / "xiaomi.dpapi").exists()
+        # Formal identity defaults use a synthetic LOCALAPPDATA, never the host profile.
+        legacy = Path(env["LOCALAPPDATA"]) / "TangerineXiaoAiAssistant"
+        legacy.mkdir(parents=True, exist_ok=True)
+        original = cfg_path.read_bytes()
+        encrypted_fixture = b"opaque synthetic DPAPI bytes; migration must never decrypt"
+        (legacy / "config.json").write_bytes(original)
+        (legacy / "xiaomi.dpapi").write_bytes(encrypted_fixture)
+        command = [str(executable)]
+        run("init")
+        current = Path(env["LOCALAPPDATA"]) / "Tangerine/Data/TangerineXiaoAiAssistant"
+        assert (current / "Config/config.json").read_bytes() == original
+        assert (current / "Storage/xiaomi.dpapi").read_bytes() == encrypted_fixture
+        assert (legacy / "tangerine-originals/xiaomi.dpapi").read_bytes() == encrypted_fixture
+        run("test-command", "让电脑打开B站")
+        run("init")
+        if args.legacy_cli:
+            previous = subprocess.run([str(args.legacy_cli.resolve()), "init"], env=env, cwd=folder,
+                                      capture_output=True, timeout=30)
+            assert previous.returncode == 2, "Old default entry must refuse retired data"
+            assert (current / "Storage/xiaomi.dpapi").read_bytes() == encrypted_fixture
+        print("Frozen default storage: PASS (migration / exact encrypted bytes / reopen / isolated profile)")
+
     print("Frozen smoke: PASS (all command dry-runs / app registration / upgrade / injection rejection / missing login; no Python on PATH)")
     if args.check_audio:
         print("Frozen Core Audio read-only check: PASS")
-    print("Frozen desktop smoke: PASS (Tk widgets / real tray / clean exit / released lock)")
+    print("Frozen desktop smoke: SKIPPED (host window constraint)" if args.no_window else
+          "Frozen desktop smoke: PASS (Tk widgets / real tray / clean exit / released lock)")
 
 
 if __name__ == "__main__":

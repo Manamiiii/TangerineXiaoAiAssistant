@@ -5,6 +5,7 @@ import sys
 import winreg
 from .config import data_directory
 from .identity import IDENTITY
+from .storage import data_file
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE_NAME = IDENTITY["startup_value"]
@@ -21,7 +22,7 @@ def command_line(directory: Path, config_path: Path) -> str:
         raise RuntimeError("找不到桌面启动程序，请完整解压便携包后再启用自启。")
     if directory.resolve() != data_directory().resolve():
         args += ["--data-dir", str(directory.resolve())]
-    if config_path.resolve() != (directory / "config.json").resolve():
+    if config_path.resolve() != data_file(directory, "config.json").resolve():
         args += ["--config", str(config_path.resolve())]
     args += ["desktop", "--hidden"]
     result = subprocess.list2cmdline(args)

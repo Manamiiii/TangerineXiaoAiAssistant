@@ -13,8 +13,8 @@ import time
 from . import __version__, config
 from .bridge import Bridge
 from .commands import CommandRouter
-from .runtime import configure_logging, single_instance
-from .lifecycle import lifecycle_guard
+from .runtime import configure_logging
+from .storage import data_file, session
 from .secure import SecretStore, SecretStoreError
 from .vendor.voxnode.account import SID_MINA, XiaomiAuthError
 from .vendor.voxnode.mina import MiNA, MiNAProtocolError
@@ -86,13 +86,13 @@ def choose_device(account, cfg: dict, config_path: Path, *, interactive=False) -
 
 def qr_login(account: SecureAccount, directory: Path) -> None:
     qr = XiaomiQrLogin()
-    path = directory / "login-qr.png"
+    path = data_file(directory, "login-qr.png")
     try:
         qr.start()
         image = qr.fetch_qr_image()
         if not image.startswith(b"\x89PNG\r\n\x1a\n"):
             raise RuntimeError("登录二维码不是预期的 PNG 图片。")
-        directory.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(image)
         os.startfile(str(path))
         print("请用米家 App 扫描打开的二维码，并在手机上确认。不要把二维码或凭据发到聊天中。")
@@ -128,7 +128,7 @@ def perform(args, directory: Path, config_path: Path) -> int:
             print(f"已创建配置：{config_path}")
         return 0
     if args.command == "logout":
-        SecretStore(directory / "xiaomi.dpapi").clear()
+        SecretStore(data_file(directory, "xiaomi.dpapi")).clear()
         print("本机小米登录缓存已删除。")
         return 0
     cfg = config.load(config_path)
@@ -168,7 +168,7 @@ def perform(args, directory: Path, config_path: Path) -> int:
         result = CommandRouter(cfg).execute(args.text, dry_run=not args.execute)
         print(json.dumps({"ok": result.ok, "code": result.code, "reply": result.reply}, ensure_ascii=False))
         return 0 if result.ok else 2
-    account = SecureAccount(SecretStore(directory / "xiaomi.dpapi"), load_existing=args.command != "login")
+    account = SecureAccount(SecretStore(data_file(directory, "xiaomi.dpapi")), load_existing=args.command != "login")
     try:
         if args.command == "login":
             # Explicit login must work even when the previous cached session expired.
@@ -224,10 +224,9 @@ def main(argv=None) -> int:
         root.print_help()
         return 0
     try:
-        directory = (args.data_dir or config.data_directory()).resolve()
-        config_path = (args.config or directory / "config.json").resolve()
-        guard_directory = config.data_directory() if getattr(sys, "frozen", False) else directory
-        with lifecycle_guard(guard_directory), single_instance(directory):
+        directory = (args.data_dir or config.data_directory()).absolute()
+        config_path = (args.config or data_file(directory, "config.json")).resolve()
+        with session(directory, frozen=getattr(sys, "frozen", False)):
             return perform(args, directory, config_path)
     except KeyboardInterrupt:
         print("\n已停止。")

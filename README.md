@@ -34,11 +34,11 @@
 
 ## 下载与版本
 
-**本轮 Windows 安装版是 0.4.1 Setup，目前只有本地验收候选包，尚未在 GitHub 提供下载。请等待验收后发布，不要把 Releases 中的 0.3.0 ZIP 当成安装版。**
+**本轮 Windows 安装版是 0.4.2 Setup，目前只有本地验收候选包，尚未在 GitHub 提供下载。请等待验收后发布，不要把 Releases 中的 0.3.0 ZIP 当成安装版。**
 
 | 版本 | 状态 | 获取方式 |
 |---|---|---|
-| **0.4.1** | Windows x64 Setup / Portable，本地候选、待验收 | 暂无公开安装包；main 提供[安装与构建说明](docs/INSTALLER.md) |
+| **0.4.2** | Windows x64 Setup / Portable，本地候选、待验收 | 暂无公开安装包；main 提供[安装与构建说明](docs/INSTALLER.md) |
 | **0.3.0** | 历史 Windows x64 便携测试版，没有安装向导 | [历史 Release](https://github.com/Manamiiii/TangerineXiaoAiAssistant/releases/tag/v0.3.0)，不是本轮候选包 |
 
 **旧包 0.3.0 尚未包含开发版的图像依赖安全更新和配置保存防护，建议等待修复版后再尝试。** [查看更新背景与安全边界](docs/PRIVACY.md#分发与依赖)。
@@ -46,7 +46,7 @@
 0.3.0 还缺少项目自身的 GPL 许可文件；包内第三方许可和源码材料的实际核对结果、拟补充方案见[发布材料核对](docs/RELEASE_REVIEW.md)。更新 main 不会改变已经下载的旧包。
 
 - GitHub 代码目录没有 `dist`；`Code → Download ZIP` 和 `Source code` 都是源码，不是运行包。
-- 0.4.1 候选文件名为 `TangerineXiaoAiAssistant-0.4.1-windows-x64-Setup.exe`；独立 Portable 为同版本 `.zip`。运行均不需要 Python。
+- 0.4.2 候选文件名为 `TangerineXiaoAiAssistant-0.4.2-windows-x64-Setup.exe`；独立 Portable 为同版本 `.zip`。运行均不需要 Python。
 - 候选包未签名，附有 `SHA256SUMS.txt`；不要关闭 Windows 防护或忽略检测结果。
 
 <details>
@@ -58,7 +58,7 @@
 
 ## 快速开始
 
-已获得 0.4.1 本地候选包的测试者：运行 Setup，从开始菜单或桌面“安装版”快捷方式启动。升级/卸载默认保留本机数据，详见 [安装版说明](docs/INSTALLER.md)。使用 Portable 时先完整解压，再双击 `TangerineXiaoAiAssistant-Desktop.exe`；不要在压缩包中运行。不带 `-Desktop` 的 EXE 是命令行工具。
+已获得 0.4.2 本地候选包的测试者：运行 Setup，从开始菜单或桌面“安装版”快捷方式启动。新装程序位于 `%LOCALAPPDATA%\Tangerine\Apps\TangerineXiaoAiAssistant`，已有两种旧安装目录原位升级。升级/卸载默认保留本机数据，详见 [安装版说明](docs/INSTALLER.md)。使用 Portable 时先完整解压，再双击 `TangerineXiaoAiAssistant-Desktop.exe`；不要在压缩包中运行。不带 `-Desktop` 的 EXE 是命令行工具。
 
 准备好 **Windows 10/11 x64 电脑、小爱音箱、绑定音箱的小米账号和米家 App**。电脑与音箱需要联网；电脑需已开机、登录桌面并保持助手运行。不需要管理员权限。目前只在 Windows 11 上验证过本地程序。
 
@@ -81,7 +81,7 @@
 - **固定口令，不是自由对话**：应用需先登记，不支持随口提供网址或复杂任务。WorkBuddy 真实任务尚未接入；不能唤醒关机或休眠电脑。
 - **设备兼容性待验证**：没有全型号、海外地区或共享设备兼容保证；长时间运行、休眠恢复、Windows 10 和真实开机自启仍待验证。
 - **口令不验证说话人**：音箱附近其他人也可能触发已配置操作，不需要的规则可以移除。
-- **凭据在本机加密保存**：默认数据目录是 `%LOCALAPPDATA%\TangerineXiaoAiAssistant`。不加入遥测，不开放远程控制端口；日志不记录语音全文或 Token。[隐私与安全说明](docs/PRIVACY.md)
+- **凭据在本机加密保存**：默认数据目录是 `%LOCALAPPDATA%\Tangerine\Data\TangerineXiaoAiAssistant`，按配置、凭据、日志和备份分类，旧数据迁移保留原件。[目录与恢复](docs/STORAGE.md)。不加入遥测，不开放远程控制端口；日志不记录语音全文或 Token。[隐私与安全说明](docs/PRIVACY.md)
 
 ## 帮助与反馈
 
@@ -94,6 +94,7 @@
 | 从哪里找 | 用途 |
 |---|---|
 | `src/xiaoai_pc/` | 应用源码。`cli.py` 分发命令，`desktop.py` 管理窗口、托盘及监听任务，`startup.py` 生成用户自启命令。 |
+| `src/xiaoai_pc/storage.py` | 默认数据布局、旧版兼容锁及保留原件的迁移。详见 [目录与恢复](docs/STORAGE.md)。 |
 | `src/xiaoai_pc/icon.py` | 原创图标绘制源。窗口、托盘和构建脚本共用，构建时生成多尺寸 `app.ico` 并嵌入程序与安装器。 |
 | `docs/`、`docs/images/` | 使用、维护、验证说明和界面示例图。 |
 | `scripts/`、`installer/windows/` | EXE 入口、打包与校验脚本，Windows 安装模板和编译器版本。`scripts/source-files.txt` 是随包源码清单。 |
@@ -112,6 +113,6 @@
 
 本项目用于开源分享，除另有声明的第三方代码外，采用 **GNU GPL v3（GPL-3.0-only）**。你可以按许可证使用、修改和再分发；软件不提供担保。完整条款见 [LICENSE](LICENSE)。
 
-VoxNode 复用代码及其他依赖保留各自的版权和许可证，详见 [第三方许可与源码说明](THIRD_PARTY_NOTICES.md)。0.4.1 候选包包含项目 GPL 全文、第三方声明、许可目录及项目和 pystray 对应源码；公开 0.3.0 的许可缺项没有因本轮源码更新自动补齐，详见[材料核对与待办](docs/RELEASE_REVIEW.md)。
+VoxNode 复用代码及其他依赖保留各自的版权和许可证，详见 [第三方许可与源码说明](THIRD_PARTY_NOTICES.md)。0.4.2 候选包包含项目 GPL 全文、第三方声明、许可目录及项目和 pystray 对应源码；公开 0.3.0 的许可缺项没有因本轮源码更新自动补齐，详见[材料核对与待办](docs/RELEASE_REVIEW.md)。
 
 这是独立第三方个人工具，与小米或腾讯没有从属关系。

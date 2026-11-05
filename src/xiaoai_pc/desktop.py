@@ -8,6 +8,7 @@ import re
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
+from .storage import data_file
 
 from PIL import Image, ImageTk
 import pystray
@@ -269,7 +270,7 @@ class Desktop:
         if not messagebox.askokcancel("退出小米登录", "删除本机保存的小米登录凭据？音箱绑定和命令配置会保留。", parent=self.root):
             return
         try:
-            SecretStore(self.directory / "xiaomi.dpapi").clear()
+            SecretStore(data_file(self.directory, "xiaomi.dpapi")).clear()
             self.set_status("已删除本机登录凭据；再次使用时请扫码登录")
         except OSError:
             self.set_status("未能删除登录凭据，请检查数据目录权限后重试")
@@ -509,11 +510,11 @@ def run(directory, config_path, *, hidden=False, smoke=False, fixture=False):
         import time
         deadline = time.monotonic() + 120
         def fixture_tick():
-            if (directory / ".fixture-stop").exists() or time.monotonic() > deadline:
+            if data_file(directory, ".fixture-stop").exists() or time.monotonic() > deadline:
                 app.exit()  # Cooperative normal shutdown; never terminate a process.
                 return
             if app.tray_ready.is_set():
-                (directory / ".fixture-ready").write_text("ready", encoding="ascii")
+                data_file(directory, ".fixture-ready").write_text("ready", encoding="ascii")
             root.after(100, fixture_tick)
         root.after(100, fixture_tick)
     root.report_callback_exception = lambda *_: app.set_status("操作未完成，请检查设置后重试")

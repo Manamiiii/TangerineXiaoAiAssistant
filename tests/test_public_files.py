@@ -63,7 +63,7 @@ class PublicFilesTests(unittest.TestCase):
 
     def test_runtime_data_directory_is_derived_from_current_machine(self):
         with TemporaryDirectory() as folder, patch.dict('os.environ', {'LOCALAPPDATA': folder}):
-            self.assertEqual(data_directory(), Path(folder) / 'TangerineXiaoAiAssistant')
+            self.assertEqual(data_directory(), Path(folder) / 'Tangerine' / 'Data' / 'TangerineXiaoAiAssistant')
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 """Cancellable desktop operations using the same Xiaomi adapter as the CLI."""
 import time
+from .storage import data_file
 
 from . import config
 from .bridge import Bridge
@@ -36,7 +37,7 @@ def login(directory, stop, emit):
                 account.login_with_pass_token(SID_MINA, qr.pass_token, qr.user_id, qr.device_id)
                 if stop.is_set():
                     return
-                SecretStore(directory / "xiaomi.dpapi").save(account.token)
+                SecretStore(data_file(directory, "xiaomi.dpapi")).save(account.token)
                 emit("status", "登录已保存；正在获取音箱列表…")
                 try:
                     devices = MiNA(account).device_list()
@@ -63,7 +64,7 @@ def login(directory, stop, emit):
 
 
 def devices(directory, stop, emit):
-    account = SecureAccount(SecretStore(directory / "xiaomi.dpapi"))
+    account = SecureAccount(SecretStore(data_file(directory, "xiaomi.dpapi")))
     try:
         require_login(account)
         result = MiNA(account).device_list()
@@ -77,7 +78,7 @@ def devices(directory, stop, emit):
 def listen(directory, data, stop, emit):
     if not data["xiaomi"]["device_id"]:
         raise config.ConfigError("请先登录、选择音箱并保存设置。")
-    account = SecureAccount(SecretStore(directory / "xiaomi.dpapi"))
+    account = SecureAccount(SecretStore(data_file(directory, "xiaomi.dpapi")))
     try:
         require_login(account)
         speaker = XiaomiSpeaker(account, data["xiaomi"]["device_id"])
@@ -91,7 +92,7 @@ def listen(directory, data, stop, emit):
 def probe(directory, data, stop, emit):
     if not data["xiaomi"]["device_id"]:
         raise config.ConfigError("请先选择音箱并保存设置。")
-    account = SecureAccount(SecretStore(directory / "xiaomi.dpapi"))
+    account = SecureAccount(SecretStore(data_file(directory, "xiaomi.dpapi")))
     try:
         require_login(account)
         records = XiaomiSpeaker(account, data["xiaomi"]["device_id"]).latest()

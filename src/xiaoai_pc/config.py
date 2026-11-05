@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .windows_actions import validate_app_path
-from .identity import IDENTITY
+from .storage import default_directory, data_file
 
 LOCAL_COMMANDS = [
     {"id": "set_volume", "action": "set_volume",
@@ -41,10 +41,7 @@ class ConfigError(ValueError):
 
 
 def data_directory() -> Path:
-    base = os.environ.get("LOCALAPPDATA")
-    if not base:
-        raise ConfigError("需要 Windows LOCALAPPDATA 目录。")
-    return Path(base) / IDENTITY["data_folder"]
+    return default_directory()
 
 
 def normalize(text: str) -> str:
@@ -154,7 +151,7 @@ def load_snapshot(path: Path) -> tuple[dict, bytes]:
     except (OSError, ValueError) as error:
         if isinstance(error, ConfigError):
             raise
-        raise ConfigError("配置无法读取。请打开数据目录检查 config.json；若有 config.json.bak，可退出助手后用它恢复。首次使用可运行 init。") from None
+        raise ConfigError("配置无法读取。请打开数据目录检查 config.json；若有 config.json.bak，可退出助手后用它恢复。请保留现场，参阅本机目录与恢复说明。") from None
 
 
 def load(path: Path) -> dict:
@@ -190,5 +187,9 @@ def save(path: Path, data: dict, *, expected_content: bytes | None = None) -> No
             validate(json.loads(previous.decode("utf-8-sig")))
         except (ValueError, UnicodeError):
             raise ConfigError("现有配置损坏，未覆盖文件或备份；请先手动恢复配置。") from None
-        _atomic_write(path.with_name(path.name + ".bak"), previous)
+        backup = (data_file(data_directory(), "config.json.bak")
+                  if path.resolve() == data_file(data_directory(), "config.json").resolve()
+                  else path.with_name(path.name + ".bak"))
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        _atomic_write(backup, previous)
     _atomic_write(path, content)

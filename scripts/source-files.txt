@@ -70,3 +70,6 @@ installer/windows/setup.nsi
 installer/windows/toolchain.json
 tests/test_windows.py
 tests/test_xiaomi.py
+src/xiaoai_pc/storage.py
+tests/test_storage.py
+docs/STORAGE.md

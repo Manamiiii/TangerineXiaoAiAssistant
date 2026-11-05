@@ -43,9 +43,9 @@ jobs:
       - name: Build Windows x64 Setup and Portable
         run: python scripts/build.py --installer
       - name: Verify production package and provenance
-        run: python scripts/verify_package.py --package-dir dist/0.4.1/TangerineXiaoAiAssistant
+        run: python scripts/verify_package.py --package-dir dist/0.4.2/TangerineXiaoAiAssistant
       - name: Frozen app smoke with isolated profile
-        run: python scripts/smoke_exe.py --package-dir dist/0.4.1/TangerineXiaoAiAssistant
+        run: python scripts/smoke_exe.py --package-dir dist/0.4.2/TangerineXiaoAiAssistant
       - name: Build isolated installer fixture
         run: |
           $fixtureId = [guid]::NewGuid().ToString()

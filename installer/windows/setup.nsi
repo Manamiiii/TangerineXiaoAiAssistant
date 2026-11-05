@@ -40,6 +40,8 @@ ShowUninstDetails show
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
 Var LifecycleHandle
+Var NewLifecycleHandle
+Var NewDataHandle
 Var DataHandle
 Var Overlap
 
@@ -53,6 +55,14 @@ Function ${PREFIX}ReleaseGuard
     System::Call 'kernel32::CloseHandle(p $DataHandle)'
     StrCpy $DataHandle 0
   ${EndIf}
+  ${If} $NewLifecycleHandle != 0
+    System::Call 'kernel32::CloseHandle(p $NewLifecycleHandle)'
+    StrCpy $NewLifecycleHandle 0
+  ${EndIf}
+  ${If} $NewDataHandle != 0
+    System::Call 'kernel32::CloseHandle(p $NewDataHandle)'
+    StrCpy $NewDataHandle 0
+  ${EndIf}
   ${If} $Overlap != 0
     System::Free $Overlap
     StrCpy $Overlap 0
@@ -60,6 +70,86 @@ Function ${PREFIX}ReleaseGuard
 FunctionEnd
 
 Function ${PREFIX}AcquireGuard
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\${DATA_FOLDER}") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\${DATA_FOLDER}\lifecycle.lock") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\${DATA_FOLDER}\assistant.lock") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\Tangerine") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\Tangerine\Data") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\Tangerine\Data\${DATA_FOLDER}") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\Tangerine\Data\${DATA_FOLDER}\Runtime") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\Tangerine\Data\${DATA_FOLDER}\Runtime\lifecycle.lock") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$LOCALAPPDATA\Tangerine\Data\${DATA_FOLDER}\Runtime\assistant.lock") i.r0'
+  ${If} $0 != -1
+    IntOp $1 $0 & 0x400
+    ${If} $1 != 0
+      SetErrorLevel 12
+      Quit
+    ${EndIf}
+  ${EndIf}
   CreateDirectory "$LOCALAPPDATA\${DATA_FOLDER}"
   System::Call '*(p0,p0,i0,i0,p0) p.r1'
   StrCpy $Overlap $1
@@ -72,6 +162,17 @@ Function ${PREFIX}AcquireGuard
   System::Call 'kernel32::CreateFileW(w "$LOCALAPPDATA\${DATA_FOLDER}\assistant.lock", i 0xC0000000, i 3, p 0, i 4, i 0x80, p 0) p.r0'
   IntCmp $0 -1 guard_busy
   StrCpy $DataHandle $0
+  System::Call 'kernel32::LockFileEx(p r0, i 3, i 0, i 1, i 0, p $Overlap) i.r2'
+  IntCmp $2 0 guard_busy
+  CreateDirectory "$LOCALAPPDATA\Tangerine\Data\${DATA_FOLDER}\Runtime"
+  System::Call 'kernel32::CreateFileW(w "$LOCALAPPDATA\Tangerine\Data\${DATA_FOLDER}\Runtime\lifecycle.lock", i 0xC0000000, i 3, p 0, i 4, i 0x80, p 0) p.r0'
+  IntCmp $0 -1 guard_busy
+  StrCpy $NewLifecycleHandle $0
+  System::Call 'kernel32::LockFileEx(p r0, i 3, i 0, i 1, i 0, p $Overlap) i.r2'
+  IntCmp $2 0 guard_busy
+  System::Call 'kernel32::CreateFileW(w "$LOCALAPPDATA\Tangerine\Data\${DATA_FOLDER}\Runtime\assistant.lock", i 0xC0000000, i 3, p 0, i 4, i 0x80, p 0) p.r0'
+  IntCmp $0 -1 guard_busy
+  StrCpy $NewDataHandle $0
   System::Call 'kernel32::LockFileEx(p r0, i 3, i 0, i 1, i 0, p $Overlap) i.r2'
   IntCmp $2 0 guard_busy
   Return
@@ -99,21 +200,27 @@ FunctionEnd
 !insertmacro ValidateFunctions "un."
 
 !define OLD_DIR "$LOCALAPPDATA\Programs\${DIRECTORY_NAME}"
-!define NEW_DIR "$LOCALAPPDATA\Programs\Tangerine\${DIRECTORY_NAME}"
+!define GROUPED_DIR "$LOCALAPPDATA\Programs\Tangerine\${DIRECTORY_NAME}"
+!define NEW_DIR "$LOCALAPPDATA\Tangerine\Apps\${DIRECTORY_NAME}"
 Var OwnedDir
 Var RemoveDesktopLink
 
 !macro ResolveFunctions PREFIX
 Function ${PREFIX}ResolveDirectory
-  ; Only the two fixed per-user locations are eligible. Never use a free-form
+  ; Only the three fixed per-user locations are eligible. Never use a free-form
   ; registry or /D path as an installation or deletion target.
   !insertmacro RejectReparse "$LOCALAPPDATA\Programs"
   !insertmacro RejectReparse "$LOCALAPPDATA\Programs\Tangerine"
+  !insertmacro RejectReparse "$LOCALAPPDATA\Tangerine"
+  !insertmacro RejectReparse "$LOCALAPPDATA\Tangerine\Apps"
+  !insertmacro RejectReparse "${GROUPED_DIR}"
+  !insertmacro RejectReparse "${GROUPED_DIR}\install.ini"
   !insertmacro RejectReparse "${NEW_DIR}"
   !insertmacro RejectReparse "${OLD_DIR}"
   !insertmacro RejectReparse "${NEW_DIR}\install.ini"
   !insertmacro RejectReparse "${OLD_DIR}\install.ini"
   ReadRegStr $0 HKCU "${UNINSTALL_KEY}" "InstallLocation"
+  StrCmp $0 "${GROUPED_DIR}" registered
   StrCmp $0 "${OLD_DIR}" registered
   StrCmp $0 "${NEW_DIR}" registered
   StrCmp $0 "" 0 unsafe_location
@@ -121,6 +228,8 @@ Function ${PREFIX}ResolveDirectory
   StrCmp $1 "" 0 unsafe_location
   !ifdef LEGACY_LAYOUT_FIXTURE
     StrCpy $OwnedDir "${OLD_DIR}"
+  !else ifdef GROUPED_LAYOUT_FIXTURE
+    StrCpy $OwnedDir "${GROUPED_DIR}"
   !else
     StrCpy $OwnedDir "${NEW_DIR}"
   !endif
@@ -132,11 +241,18 @@ registered:
   ReadINIStr $1 "$OwnedDir\install.ini" "Application" "Id"
   StrCmp $1 "${APP_GUID}" 0 unsafe_location
 check_other:
-  StrCpy $2 "${OLD_DIR}"
-  StrCmp $OwnedDir $2 0 +2
-  StrCpy $2 "${NEW_DIR}"
-  ReadINIStr $1 "$2\install.ini" "Application" "Id"
+  StrCmp $OwnedDir "${OLD_DIR}" skip_other_0
+  ReadINIStr $1 "${OLD_DIR}\install.ini" "Application" "Id"
   StrCmp $1 "${APP_GUID}" unsafe_location
+skip_other_0:
+  StrCmp $OwnedDir "${GROUPED_DIR}" skip_other_1
+  ReadINIStr $1 "${GROUPED_DIR}\install.ini" "Application" "Id"
+  StrCmp $1 "${APP_GUID}" unsafe_location
+skip_other_1:
+  StrCmp $OwnedDir "${NEW_DIR}" skip_other_2
+  ReadINIStr $1 "${NEW_DIR}\install.ini" "Application" "Id"
+  StrCmp $1 "${APP_GUID}" unsafe_location
+skip_other_2:
   Return
 unsafe_location:
   MessageBox MB_ICONSTOP|MB_OK "安装登记、目录或身份标记不一致，无法确认程序归属。请保留现场检查后重试。" /SD IDOK

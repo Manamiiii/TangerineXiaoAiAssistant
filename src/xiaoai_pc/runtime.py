@@ -7,9 +7,11 @@ import os
 import sys
 from pathlib import Path
 
+from .storage import data_file
+
 
 def configure_logging(directory: Path) -> None:
-    directory.mkdir(parents=True, exist_ok=True)
+    data_file(directory, "assistant.log").parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("xiaoai_pc")
     logger.setLevel(logging.INFO)
     logger.propagate = False
@@ -17,7 +19,7 @@ def configure_logging(directory: Path) -> None:
         handler.close()
     logger.handlers.clear()
     handlers = [RotatingFileHandler(
-        directory / "assistant.log", maxBytes=512_000, backupCount=2, encoding="utf-8"
+        data_file(directory, "assistant.log"), maxBytes=512_000, backupCount=2, encoding="utf-8"
     )]
     if sys.stderr is not None:
         handlers.append(logging.StreamHandler())
@@ -32,8 +34,8 @@ def single_instance(directory: Path):
         raise RuntimeError("此版本仅支持 Windows。")
     import msvcrt
 
-    directory.mkdir(parents=True, exist_ok=True)
-    path = directory / "assistant.lock"
+    path = data_file(directory, "assistant.lock")
+    path.parent.mkdir(parents=True, exist_ok=True)
     handle = path.open("a+b")
     try:
         handle.seek(0, 2)

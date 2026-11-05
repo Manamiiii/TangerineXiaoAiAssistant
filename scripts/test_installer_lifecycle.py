@@ -12,6 +12,7 @@ import time
 import winreg
 
 from xiaoai_pc import config
+from xiaoai_pc.storage import FILES
 from xiaoai_pc.identity import PRODUCTION
 from xiaoai_pc.lifecycle import lifecycle_guard
 from xiaoai_pc.runtime import single_instance
@@ -56,15 +57,19 @@ def check_installer(package):
     if not identity['fixture'] or identity['data_folder'] == PRODUCTION['data_folder']:
         raise RuntimeError("Refusing installer lifecycle tests on the production identity")
     local = Path(os.environ['LOCALAPPDATA']).resolve()
-    data = local / identity['data_folder']
+    compatibility = local / identity['data_folder']
+    data = local / 'Tangerine' / 'Data' / identity['data_folder']
+    def profile(name):
+        return data / FILES.get(name, 'Runtime/' + name)
     legacy = local / 'Programs' / identity['directory_name']
-    current = local / 'Programs' / 'Tangerine' / identity['directory_name']
+    grouped = local / 'Programs' / 'Tangerine' / identity['directory_name']
+    current = local / 'Tangerine' / 'Apps' / identity['directory_name']
     installed = current
     key = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\' + identity['guid']
     desktop_link = special_folder(0x10) / (identity['display_name'] + '（安装版）.lnk')
     menu = special_folder(2) / identity['display_name']
     menu_link = menu / (identity['display_name'] + '.lnk')
-    if data.exists() or legacy.exists() or current.exists() or desktop_link.exists() or menu.exists():
+    if compatibility.exists() or grouped.exists() or data.exists() or legacy.exists() or current.exists() or desktop_link.exists() or menu.exists():
         raise RuntimeError("Fixture paths already exist; preserve them and build a new fixture UUID")
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY):
@@ -75,6 +80,9 @@ def check_installer(package):
     low = package.parent / f"{identity['directory_name']}-0.0.1-windows-x64-Setup.exe"
     if not low.exists():
         low = build_installer(package, installer_version='0.0.1')
+    middle = package.parent / f"{identity['directory_name']}-0.0.2-windows-x64-Setup.exe"
+    if not middle.exists():
+        middle = build_installer(package, installer_version='0.0.2')
     checks = []
     child = None
 
@@ -106,12 +114,12 @@ def check_installer(package):
         return invoke([str(installed / 'TangerineXiaoAiAssistant.exe'), *args], expected)
 
     def snapshot():
-        return {name: hashlib.sha256((data / name).read_bytes()).hexdigest()
+        return {name: hashlib.sha256(profile(name).read_bytes()).hexdigest()
                 for name in ('config.json', 'config.json.bak', 'xiaomi.dpapi', 'fixture-business.json')}
 
     def stop_fixture():
         if child is not None and child.poll() is None:
-            (data / '.fixture-stop').write_text('stop', encoding='ascii')
+            profile('.fixture-stop').write_text('stop', encoding='ascii')
             child.wait(timeout=30)  # Never terminate/kill even if a test fails.
 
     try:
@@ -140,10 +148,10 @@ def check_installer(package):
                 installed.rmdir()
         passed('rejects an installation junction without writing into its target')
 
-        with lifecycle_guard(data, exclusive=True):
+        with lifecycle_guard(compatibility, exclusive=True):
             invoke([str(low), '/S'], 10)
         passed('concurrent installer lock rejects installation')
-        with single_instance(data):
+        with single_instance(compatibility):
             invoke([str(low), '/S'], 10)
         passed('legacy portable data lock rejects installation')
 
@@ -173,12 +181,14 @@ def check_installer(package):
         passed('per-user install creates expected HKCU uninstall entry and shortcuts')
 
         cli('init')
-        cfg = config.load(data / 'config.json')
+        cfg = config.load(profile('config.json'))
         cfg['tts_reply'] = False
         cfg['commands'][0]['url'] = 'https://example.com'
-        config.save(data / 'config.json', cfg)
-        SecretStore(data / 'xiaomi.dpapi').save({'fixture': 'not-a-real-login'})
-        (data / 'fixture-business.json').write_text('{"fixture": 1}', encoding='utf-8')
+        profile('config.json.bak').parent.mkdir(parents=True, exist_ok=True)
+        profile('config.json.bak').write_bytes(profile('config.json').read_bytes())
+        profile('config.json').write_text(json.dumps(cfg), encoding='utf-8')
+        SecretStore(profile('xiaomi.dpapi')).save({'fixture': 'not-a-real-login'})
+        profile('fixture-business.json').write_text('{"fixture": 1}', encoding='utf-8')
         saved = snapshot()
         assert json.loads(cli('test-command', '让电脑打开B站').stdout)['code'] == 'dry_run'
         assert json.loads(cli('test-command', '让电脑把音量调到三十').stdout)['code'] == 'dry_run'
@@ -191,7 +201,7 @@ def check_installer(package):
         child = subprocess.Popen([str(installed / 'TangerineXiaoAiAssistant-Desktop.exe'), 'desktop', '--fixture-session'],
                                  creationflags=subprocess.CREATE_NO_WINDOW)
         deadline = time.monotonic() + 40
-        while not (data / '.fixture-ready').exists():
+        while not profile('.fixture-ready').exists():
             if child.poll() is not None or time.monotonic() > deadline:
                 raise RuntimeError('Fixture GUI did not become ready')
             time.sleep(0.1)
@@ -214,7 +224,7 @@ def check_installer(package):
         assert installed_version() == info['version'] and snapshot() == saved
         passed('downgrade refused without changing program version or data')
         cli('init')
-        with lifecycle_guard(data, exclusive=True):
+        with lifecycle_guard(compatibility, exclusive=True):
             cli('init', expected=2)
         assert snapshot() == saved
         passed('frozen app refuses startup while installer holds lock; reopen retains data')
@@ -234,6 +244,15 @@ def check_installer(package):
         passed('uninstall removes owned files/shortcuts/registration but retains all data and unknown files')
         unknown.unlink()
         installed.rmdir()
+        installed = grouped
+        invoke([str(middle), '/S'])
+        assert installed_version() == '0.0.2' and not current.exists()
+        invoke([str(high), '/S'])
+        assert installed_version() == info['version'] and snapshot() == saved
+        cli('init')
+        uninstall()
+        assert not grouped.exists() and snapshot() == saved
+        passed('previous Programs/Tangerine layout upgrades in place and preserves data on uninstall')
         installed = current
         sibling = current.parent / (identity['directory_name'] + '-sibling.txt')
         with sibling.open('x', encoding='ascii') as stream:
@@ -244,7 +263,7 @@ def check_installer(package):
         check_app_shortcut(menu_link, current)
         cli('init')
         assert snapshot() == saved
-        assert SecretStore(data / 'xiaomi.dpapi').load() == {'fixture': 'not-a-real-login'}
+        assert SecretStore(profile('xiaomi.dpapi')).load() == {'fixture': 'not-a-real-login'}
         invoke([str(installed / 'TangerineXiaoAiAssistant-Desktop.exe'), 'desktop', '--smoke-test'])
         passed('reinstall and real window reopen recover retained config and encrypted fixture data')
         from comtypes.persist import IPersistFile
@@ -269,6 +288,9 @@ def check_installer(package):
         assert data.resolve().is_relative_to(local) and data.resolve().name == identity['data_folder'] and identity['fixture']
         assert not data.is_symlink() and not data.is_junction()
         shutil.rmtree(data)
+        assert compatibility.resolve().parent == local and compatibility.name == identity['data_folder']
+        assert not compatibility.is_junction() and not compatibility.is_symlink()
+        shutil.rmtree(compatibility)
         passed('test-only installation and profile cleanup complete')
         (package.parent / 'lifecycle-results.json').write_text(json.dumps(
             {'version': info['version'], 'fixture': True, 'checks': checks,
