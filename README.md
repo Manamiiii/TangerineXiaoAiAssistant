@@ -107,7 +107,7 @@
 
 项目名为 `TangerineXiaoAiAssistant`，使用 Python，窄范围复用 [VoxNode](https://github.com/Almmor/VoxNode) 的小米通信代码，保留上游许可与修改记录。
 
-[源码运行与构建](docs/DEVELOPMENT.md) · [Windows 安装版](docs/INSTALLER.md) · [复用研究与架构](docs/RESEARCH.md) · [WorkBuddy 接入进度](docs/WORKBUDDY.md)
+[源码运行与构建](docs/DEVELOPMENT.md) · [桌面验收入口交付](docs/DEVELOPMENT.md#桌面免安装验收入口交付) · [Windows 安装版](docs/INSTALLER.md) · [复用研究与架构](docs/RESEARCH.md) · [WorkBuddy 接入进度](docs/WORKBUDDY.md)
 
 ## License
 

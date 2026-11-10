@@ -73,3 +73,5 @@ tests/test_xiaomi.py
 src/xiaoai_pc/storage.py
 tests/test_storage.py
 docs/STORAGE.md
+scripts/check_desktop_entry.py
+tests/test_desktop_delivery.py
